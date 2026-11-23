@@ -105,7 +105,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-of
 .credits a{color:inherit}
 
 /* drawer */
-#drawer{position:fixed;left:0;right:0;bottom:0;height:calc(94dvh - var(--safe-t));z-index:1100;border-radius:22px 22px 0 0;background:var(--panel2);border:1px solid var(--line);border-bottom:0;box-shadow:0 -10px 40px rgba(0,0,0,.45);display:flex;flex-direction:column;max-width:640px;margin:0 auto;will-change:transform;touch-action:none}
+#drawer{position:fixed;left:0;right:0;bottom:0;height:calc(94dvh - var(--safe-t));z-index:1100;border-radius:22px 22px 0 0;background:var(--panel2);border:1px solid var(--line);border-bottom:0;box-shadow:0 -10px 40px rgba(0,0,0,.45);display:flex;flex-direction:column;max-width:640px;margin:0 auto;will-change:transform;touch-action:pan-x pan-y}
 #drawer.anim{transition:transform .32s cubic-bezier(.2,.8,.2,1)}
 .grab{padding:7px 16px 10px;cursor:grab;touch-action:none;flex:none}
 .handle{width:42px;height:5px;border-radius:3px;background:rgba(255,255,255,.25);margin:0 auto 9px}
@@ -1104,13 +1104,66 @@ function centerPoint(){
   if(Math.abs(p.x-tx)+Math.abs(p.y-ty2)>4)map.panBy([p.x-tx,p.y-ty2],{animate:true,duration:.35});
 }
 function calcSnaps(){const H=dr.offsetHeight,pk=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--peek'))||168;snaps=[H-pk,Math.round(H*.45),0]}
-function snap(i,anim=true){const was=si;dr.classList.toggle('collapsed',i===0&&innerWidth<1000);calcSnaps();si=i;ty=snaps[i];dr.classList.toggle('anim',anim);dr.style.transform=`translateY(${ty}px)`;$('tl').classList.toggle('hide',i>=1&&innerWidth<1000);if(was!==i||!anim)setTimeout(centerPoint,anim?340:0);$('dc').style.overflowY=i===2?'auto':'hidden'}
+function snap(i,anim=true){const was=si;dr.classList.toggle('collapsed',i===0&&innerWidth<1000);calcSnaps();si=i;ty=snaps[i];dr.classList.toggle('anim',anim);dr.style.transform=`translateY(${ty}px)`;$('tl').classList.toggle('hide',i>=1&&innerWidth<1000);if(was!==i||!anim)setTimeout(centerPoint,anim?340:0);$('dc').style.overflowY=i===2?'auto':'hidden';if(i<2)$('dc').scrollTo({top:0,behavior:anim?'smooth':'auto'})}
+/* settle to a snap point, using the swipe speed (px/ms, + = down) */
+function settle(v){
+  let b=0;
+  if(Math.abs(v)>.35){
+    const cand=snaps.map((p,i)=>({p,i})).filter(o=>v<0?o.p<ty-4:o.p>ty+4).sort((x,y)=>Math.abs(x.p-ty)-Math.abs(y.p-ty));
+    b=cand.length?cand[0].i:(v<0?2:0);
+  }else snaps.forEach((p,i)=>{if(Math.abs(p-ty)<Math.abs(snaps[b]-ty))b=i});
+  snap(b);
+}
+/* mouse: drag the handle area */
 let drag=null;
-$('grab').addEventListener('pointerdown',e=>{calcSnaps();drag={y:e.clientY,t0:ty,ts:performance.now(),moved:false};dr.classList.remove('anim');$('grab').setPointerCapture(e.pointerId)});
-$('grab').addEventListener('pointermove',e=>{if(!drag)return;const dy=e.clientY-drag.y;if(Math.abs(dy)>4)drag.moved=true;ty=clamp(drag.t0+dy,0,snaps[0]);dr.style.transform=`translateY(${ty}px)`});
+$('grab').addEventListener('pointerdown',e=>{if(e.pointerType!=='mouse'||e.target.closest('.nb'))return;calcSnaps();drag={y:e.clientY,t0:ty,ts:performance.now(),moved:false};dr.classList.remove('anim');$('grab').setPointerCapture(e.pointerId)});
+$('grab').addEventListener('pointermove',e=>{if(!drag)return;const dy=e.clientY-drag.y;if(Math.abs(dy)>4){drag.moved=true;if(dy<0)dr.classList.remove('collapsed')}ty=clamp(drag.t0+dy,0,snaps[0]);dr.style.transform=`translateY(${ty}px)`});
 $('grab').addEventListener('pointerup',e=>{if(!drag)return;const dy=e.clientY-drag.y,v=dy/(performance.now()-drag.ts);
-  if(!drag.moved)snap(si===0?1:si===1?2:0);else if(Math.abs(v)>.5)snap(v<0?Math.min(2,si+1):Math.max(0,si-1));else{let b=0;snaps.forEach((s,i)=>{if(Math.abs(s-ty)<Math.abs(snaps[b]-ty))b=i});snap(b)}
-  drag=null});
+  if(!drag.moved)snap(si===0?1:si===1?2:0);else settle(Math.abs(v)>.5?v:0);drag=null});
+/* touch: the whole sheet. While it is not fully open, any vertical swipe moves it;
+   when fully open the content scrolls, and pulling down from the top of the content moves the sheet again. */
+const dc=$('dc');let g=null;
+dr.addEventListener('touchstart',e=>{
+  if(innerWidth>=1000||e.touches.length>1){g=null;return}
+  const t=e.touches[0];calcSnaps();
+  g={x0:t.clientX,y0:t.clientY,ly:t.clientY,lt:performance.now(),v:0,axis:null,mode:null,inContent:!!e.target.closest('#dc'),onBtn:!!e.target.closest('button,.nb')};
+},{passive:true});
+dr.addEventListener('touchmove',e=>{
+  if(!g)return;const t=e.touches[0],dx=t.clientX-g.x0,dy=t.clientY-g.y0;
+  if(!g.axis){if(Math.abs(dx)<7&&Math.abs(dy)<7)return;g.axis=Math.abs(dy)>=Math.abs(dx)?'y':'x'}
+  if(g.axis==='x')return; // horizontal lists scroll natively
+  const now=performance.now(),dyStep=t.clientY-g.ly;
+  if(now>g.lt){g.v=g.v*.6+(dyStep/(now-g.lt))*.4}g.ly=t.clientY;g.lt=now;
+  const full=ty<=0.5;
+  if(!g.mode){
+    if(!g.inContent||!full||(dy>0&&dc.scrollTop<=0))g.mode='sheet';else g.mode='scroll';
+    if(g.mode==='sheet'){g.sy=t.clientY;g.sty=ty;dr.classList.remove('anim')}
+  }
+  if(g.mode==='scroll'){
+    // reached the top of the content while pulling down: the sheet takes over
+    if(dc.scrollTop<=0&&dyStep>0){g.mode='sheet';g.sy=t.clientY;g.sty=ty;dr.classList.remove('anim')}else return;
+  }
+  if(e.cancelable)e.preventDefault();
+  let nt=g.sty+(t.clientY-g.sy);
+  if(nt<0){ // sheet fully open and still swiping up: keep going by scrolling the content
+    if(g.inContent){dc.style.overflowY='auto';dc.scrollTop+=-nt;}
+    g.sy=t.clientY;g.sty=0;nt=0;
+  }
+  if(dy<0&&dr.classList.contains('collapsed'))dr.classList.remove('collapsed');
+  ty=clamp(nt,0,snaps[0]);dr.style.transform=`translateY(${ty}px)`;
+},{passive:false});
+dr.addEventListener('touchend',e=>{
+  if(!g)return;const G=g;g=null;
+  if(!G.axis){ // a tap: on the handle area (not on a button) it toggles the sheet
+    if(!G.onBtn&&e.target.closest('#grab')){e.preventDefault();snap(si===0?1:si===1?2:0)}
+    return}
+  if(G.mode==='sheet'){
+    // keep the content's momentum when the sheet arrived at the top with an upward fling
+    if(ty<=0.5&&G.v<-.3&&G.inContent){snap(2);dc.scrollBy({top:-G.v*250,behavior:'smooth'});return}
+    settle(G.v);
+  }
+},{passive:false});
+dr.addEventListener('touchcancel',()=>{if(g&&g.mode==='sheet')settle(0);g=null});
 addEventListener('resize',()=>snap(si,false));
 
 /* ================= location / search ================= */
