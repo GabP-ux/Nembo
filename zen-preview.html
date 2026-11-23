@@ -22,6 +22,10 @@ p.lead{color:var(--mute);margin:6px 0 16px;max-width:720px}
 .scene{position:absolute;inset:0;overflow:hidden}
 .scene img{position:absolute;inset:-4%;width:108%;height:108%;object-fit:cover;animation:kb 28s ease-in-out infinite alternate;will-change:transform}
 @keyframes kb{from{transform:scale(1) translate(0,0)}to{transform:scale(1.07) translate(-1.5%,-1%)}}
+.scene.partly img,.scene.cloudy img,.scene.overcast img,.scene.nightcloud img{animation:drift 26s ease-in-out infinite alternate}
+.scene.fog img{animation:drift 34s ease-in-out infinite alternate,breathe 9s ease-in-out infinite}
+@keyframes drift{from{transform:scale(1.06) translate(2.5%,0)}to{transform:scale(1.1) translate(-2.5%,-1%)}}
+@keyframes breathe{0%,100%{filter:brightness(1) contrast(1)}50%{filter:brightness(1.08) contrast(.92)}}
 .scene.wind img{animation:kb 28s ease-in-out infinite alternate,sway 2.6s ease-in-out infinite;transform-origin:50% 100%}
 @keyframes sway{0%,100%{rotate:0deg}50%{rotate:.7deg}}
 .scene canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
@@ -73,6 +77,20 @@ const ST=[
  {k:'nightcloud',n:'Notte nuvolosa',img:'hf_20261123_144510_d95b810f-5f36-46ed-92e7-61e7f966f581.png',fx:'nightcloud',w:'Nuvoloso di notte (3); con pioggia, neve o temporale vale lo stato di pioggia',t:'5°'},
 ];
 const rnd=(a,b)=>a+Math.random()*(b-a);
+/* tileable fractal noise rendered once as soft cloud wisps (white with alpha); tinted per state when drawn */
+const NOISE={};
+function noiseTex(seed,cover){
+  const k=seed+'_'+cover;if(NOISE[k])return NOISE[k];
+  const w=256,h=128,c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d'),im=g.createImageData(w,h);
+  let s0=seed*9301+49297;const R=()=>(s0=(s0*9301+49297)%233280)/233280;
+  const oct=[[8,4],[16,8],[32,16],[64,32]].map(([gx,gy])=>{const v=[];for(let i=0;i<gx*gy;i++)v.push(R());return{gx,gy,v}});
+  const sm=t=>t*t*(3-2*t);
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){let n=0,amp=1,tot=0;
+    for(const o of oct){const fx=x/w*o.gx,fy=y/h*o.gy,ix=Math.floor(fx),iy=Math.floor(fy),u=sm(fx-ix),v=sm(fy-iy),a=o.v[(iy%o.gy)*o.gx+ix%o.gx],b=o.v[(iy%o.gy)*o.gx+(ix+1)%o.gx],c2=o.v[((iy+1)%o.gy)*o.gx+ix%o.gx],d=o.v[((iy+1)%o.gy)*o.gx+(ix+1)%o.gx];
+      n+=amp*((a*(1-u)+b*u)*(1-v)+(c2*(1-u)+d*u)*v);tot+=amp;amp*=.5}
+    n/=tot;const a=Math.max(0,Math.min(1,(n-(1-cover))/(cover*.9)));const p=(y*w+x)*4;im.data[p]=im.data[p+1]=im.data[p+2]=255;im.data[p+3]=255*a*a*(3-2*a)}
+  g.putImageData(im,0,0);return NOISE[k]=c;
+}
 
 /* ---------- animated layers drawn on a canvas over the photo ---------- */
 function makeFX(kind,cv,flash){
@@ -89,6 +107,24 @@ function makeFX(kind,cv,flash){
     if(kind==='wind'){for(let i=0;i<A*.8;i++)P.push({x:rnd(-W,W),y:rnd(0,H),l:rnd(30,110),v:rnd(6,14),a:rnd(.05,.18),leaf:false});for(let i=0;i<A*.25;i++)P.push({x:rnd(-W,W),y:rnd(0,H),v:rnd(3,7),r:rnd(2.5,5),rot:rnd(0,6.28),vr:rnd(-.2,.2),p:rnd(0,6.28),leaf:true})}
     if(kind==='rainbow')for(let i=0;i<A*.9;i++)P.push({x:rnd(0,W),y:rnd(H*.62,H),r:rnd(.6,1.8),p:rnd(0,6.28),f:rnd(1,3),spark:true});
   }
+  // moving cloud / fog layers: [texture seed, coverage, y0, y1 (fraction of height), scale, speed px/s, alpha, tint]
+  const LAY={
+    fog:[[1,.62,.30,1.05,2.2,9,.55,'#eef2f5'],[2,.55,.45,1.05,1.5,16,.45,'#ffffff'],[3,.5,.6,1.05,1.1,24,.35,'#f4f6f8']],
+    cloudy:[[4,.5,-.05,.6,2.4,10,.35,'#ffffff'],[5,.42,.05,.7,1.6,18,.28,'#eef1f4']],
+    partly:[[6,.38,-.05,.55,2,12,.3,'#ffffff']],
+    overcast:[[7,.55,-.05,.65,2.4,14,.45,'#3a414b'],[8,.45,.05,.75,1.6,24,.35,'#565e69']],
+    nightcloud:[[9,.5,.05,.65,2.2,10,.5,'#1d2638'],[10,.42,.15,.7,1.5,17,.35,'#2c3850']]
+  }[kind]||[];
+  const tinted=LAY.map(L=>{const t=noiseTex(L[0],L[1]),c=document.createElement('canvas');c.width=t.width;c.height=t.height;const x=c.getContext('2d');x.drawImage(t,0,0);x.globalCompositeOperation='source-in';x.fillStyle=L[7];x.fillRect(0,0,c.width,c.height);return c});
+  const off=document.createElement('canvas'),og=off.getContext('2d');
+  function layers(t){
+    LAY.forEach((L,i)=>{const[, ,y0,y1,sc,sp,al]=L,tex=tinted[i],bh=(y1-y0)*H,tw=W*sc,th=bh;
+      off.width=Math.ceil(W);off.height=Math.ceil(bh);og.clearRect(0,0,off.width,off.height);
+      const x=-((t*sp)%tw);og.globalAlpha=1;og.drawImage(tex,x,0,tw,th);og.drawImage(tex,x+tw,0,tw,th);
+      // soft top/bottom edges
+      og.globalCompositeOperation='destination-in';const gr=og.createLinearGradient(0,0,0,bh);gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(.3,'rgba(0,0,0,1)');gr.addColorStop(.75,'rgba(0,0,0,1)');gr.addColorStop(1,'rgba(0,0,0,0)');og.fillStyle=gr;og.fillRect(0,0,off.width,off.height);og.globalCompositeOperation='source-over';
+      g.globalAlpha=al*(.85+.15*Math.sin(t*.3+i));g.drawImage(off,0,y0*H);g.globalAlpha=1});
+  }
   function blob(x,y,rx,ry,a,col){const gr=g.createRadialGradient(x,y,0,x,y,rx);gr.addColorStop(0,`rgba(${col},${a})`);gr.addColorStop(1,`rgba(${col},0)`);g.save();g.translate(x,y);g.scale(1,ry/rx);g.translate(-x,-y);g.fillStyle=gr;g.beginPath();g.arc(x,y,rx,0,6.29);g.fill();g.restore()}
   function frame(now){
     const t=(now-t0)/1000;g.clearRect(0,0,W,H);
@@ -101,10 +137,7 @@ function makeFX(kind,cv,flash){
     }
     if(kind==='sun'||kind==='partly'||kind==='rainbow'){g.globalCompositeOperation='lighter';for(const p of P){if(p.spark)continue;p.y-=p.v;p.x+=Math.sin(t*.5+p.p)*.15;if(p.y<-5){p.y=H+5;p.x=rnd(0,W)}g.fillStyle=`rgba(255,230,180,${p.a*(.6+.4*Math.sin(t*2+p.p))})`;g.beginPath();g.arc(p.x,p.y,p.r,0,6.29);g.fill()}g.globalCompositeOperation='source-over'}
     if(kind==='partly'){const x=((t*18)%(W*2))-W*.5;blob(x,H*.45,W*.8,H*.5,.16,'0,0,0')} // passing cloud shadow
-    if(['fog','cloudy','overcast','nightcloud','partly'].includes(kind)){
-      const col=kind==='overcast'?'60,66,76':kind==='nightcloud'?'40,50,70':'235,240,245';
-      for(const p of P){p.x+=p.v;if(p.x-p.rx>W)p.x=-p.rx;blob(p.x,p.y,p.rx,p.ry,p.a*(kind==='fog'?1.6:1),col)}
-    }
+    if(LAY.length)layers(t);
     if(kind==='nightcloud'){blob(W*.5,H*.3,W*.4,W*.4,.12+.04*Math.sin(t*.7),'220,230,255')}
     if(kind==='overcast'){g.fillStyle=`rgba(0,0,0,${.06+.05*Math.sin(t*.35)})`;g.fillRect(0,0,W,H)}
     if(kind==='night'){for(const p of P){const a=.35+.65*Math.max(0,Math.sin(t*p.f+p.p));g.fillStyle=`rgba(255,255,255,${a})`;g.beginPath();g.arc(p.x,p.y,p.r,0,6.29);g.fill()}
