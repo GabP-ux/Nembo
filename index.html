@@ -424,6 +424,9 @@ function setBase(){
   const s=S.light?'Light':'Dark';
   base=L.tileLayer(`https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_${s}_Gray_Base/MapServer/tile/{z}/{y}/{x}`,{maxZoom:16}).addTo(map);
   labels=L.tileLayer(`https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_${s}_Gray_Reference/MapServer/tile/{z}/{y}/{x}`,{maxZoom:16,pane:'labels',opacity:.9}).addTo(map);
+  // Esri sometimes drops a tile: retry it twice instead of leaving a dark square
+  const retry=e=>{const t=e.tile,n=+(t.dataset.r||0);if(n>=2)return;t.dataset.r=n+1;setTimeout(()=>{t.src=t.src.split('?')[0]+'?r='+(n+1)},700*(n+1))};
+  base.on('tileerror',retry);labels.on('tileerror',retry);
 }
 setBase();
 const cvs=L.DomUtil.create('canvas','leaflet-zoom-hide',map.getPane('rain'));const ctx=cvs.getContext('2d');
