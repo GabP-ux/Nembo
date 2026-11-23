@@ -1,6 +1,6 @@
 // Nembo service worker: makes the app installable, opens offline with the last version,
 // keeps the zen-mode photos on the phone after the first view, and lets the page show rain notifications on Android.
-const CACHE = 'nembo-v7', PHOTOS = 'nembo-photos-v1';
+const CACHE = 'nembo-v8', PHOTOS = 'nembo-photos-v1';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE && k !== PHOTOS).map(k => caches.delete(k))))); self.clients.claim(); });

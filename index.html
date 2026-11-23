@@ -1435,7 +1435,7 @@ function openZen(){
   // time references: a label at each midnight, a small tick every 6 hours (thumb is 20px wide)
   const N=ZI.length-1,pos=j=>`calc(10px + (100% - 20px) * ${(j/N).toFixed(4)})`,TW=Math.max(120,$('zdays').clientWidth-20);
   // labels only where they fit: every day if there is room, otherwise every 2nd/3rd day; short names when space is tight
-  const mids=ZI.map((i,j)=>[j,HT[i]-3600]).filter(([j,t])=>hr(t)===0&&j>0),dayPx=TW*24/N,every=dayPx>=58?1:dayPx>=30?2:3,short=dayPx*every<62;
+  const mids=ZI.map((i,j)=>[j,HT[i]-3600]).filter(([j,t])=>hr(t)===0&&j>0),dayPx=TW*24/N,every=dayPx>=46?1:dayPx>=22?2:3,short=dayPx*every<62;
   let h='',lastX=-1e9;const firstX=0;
   mids.forEach(([j,t],k)=>{const x=TW*j/N;h+=`<i style="left:${pos(j)};top:16px;height:12px;background:rgba(255,255,255,.5)"></i>`;
     if(k%every===0&&x-lastX>=(short?32:52)&&x<TW-30&&x>(short?30:52)){h+=`<span style="left:${pos(j)}">${k===0&&!short?'Domani':short?fmt(t,{weekday:'short'}).replace(/^./,c=>c.toUpperCase()):wd(t)}</span>`;lastX=x}});
