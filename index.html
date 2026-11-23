@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<meta name="theme-color" content="#0e1621">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Nembo · pioggia multi-modello</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0e1621;--panel:rgba(20,30,43,.92);--panel2:#182433;--line:rgba(255,255,255,.09);
+  --ink:#eef3f8;--mute:#93a3b5;--acc:#4ba3ff;--acc2:#ffc43d;--nc:#c08cff;
+  --peek:236px;--r:18px;
+  --safe-t:env(safe-area-inset-top,0px);--safe-b:env(safe-area-inset-bottom,0px);
+  color-scheme:dark;
+}
+*{box-sizing:border-box;min-width:0;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:15px/1.4 Figtree,system-ui,sans-serif;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+#map{position:fixed;inset:0;background:#0b121b}
+.leaflet-container{background:#0b121b;font-family:inherit}
+.glass{background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);box-shadow:0 8px 30px rgba(0,0,0,.35)}
+
+/* top */
+#top{position:fixed;top:calc(10px + var(--safe-t));left:10px;right:10px;z-index:1000;display:flex;flex-direction:column;gap:8px;max-width:620px;margin:0 auto}
+.row{display:flex;gap:8px;align-items:center}
+#search{flex:1;position:relative}
+#search input{width:100%;height:46px;border-radius:23px;padding:0 16px 0 42px;font:16px Figtree,sans-serif;color:var(--ink)}
+#search input::placeholder{color:var(--ink);opacity:.9;font-weight:600}
+#search svg{position:absolute;left:14px;top:13px;opacity:.7;z-index:1;pointer-events:none}
+#results{position:absolute;top:52px;left:0;right:0;border-radius:14px;overflow:hidden;display:none;z-index:3}
+#results button{display:block;width:100%;text-align:left;padding:12px 16px;border-bottom:1px solid var(--line)}
+#results button small{color:var(--mute);display:block}
+.ibtn{width:46px;height:46px;border-radius:23px;display:grid;place-items:center;flex:none}
+
+#srcbar{border-radius:16px;padding:8px;display:flex;flex-direction:column;gap:7px}
+.sw2{display:flex;background:rgba(255,255,255,.07);border-radius:11px;padding:3px;flex:none}
+.sw2 button{height:32px;padding:0 12px;border-radius:9px;font-weight:700;font-size:13.5px;color:var(--mute);white-space:nowrap}
+.sw2 button.on{background:var(--ink);color:#0e1621}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;align-items:center}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;height:32px;padding:0 11px;border-radius:16px;font-weight:600;font-size:13.5px;display:flex;align-items:center;gap:6px;white-space:nowrap;border:1px solid var(--line);background:rgba(255,255,255,.04)}
+.chip.on{background:var(--ink);color:#0e1621;border-color:transparent}
+.chip i{width:8px;height:8px;border-radius:4px;display:inline-block;flex:none}
+.chip .ck{width:16px;height:16px;border-radius:5px;border:1.5px solid currentColor;display:grid;place-items:center;font-size:11px;opacity:.8}
+.chip.on .ck{background:#0e1621;color:#fff;border-color:#0e1621}
+.hrow{display:flex;gap:6px;align-items:center}
+.hrow>span{font-size:12.5px;color:var(--mute);flex:none;padding-left:2px}
+@media(max-width:600px){#srcbar .hrow:first-child{flex-wrap:wrap}#mchips{flex:1 1 100%}}
+#srcline{font-size:12.5px;color:var(--mute);padding:0 2px;line-height:1.3}
+#srcline b{color:var(--ink);font-weight:700}
+#reload{align-self:center;display:none;height:36px;padding:0 16px;border-radius:18px;font-weight:700;background:var(--acc);color:#04121f;box-shadow:0 6px 20px rgba(0,0,0,.4)}
+
+/* timeline */
+#tl{position:fixed;left:10px;right:10px;bottom:calc(var(--peek) + 10px + var(--safe-b));z-index:900;border-radius:var(--r);padding:12px 14px 9px;max-width:620px;margin:0 auto;transition:opacity .2s}
+#tl.hide{opacity:0;pointer-events:none}
+.tlhead{display:flex;align-items:center;gap:10px}
+#play{width:44px;height:44px;border-radius:22px;background:var(--ink);color:#0e1621;display:grid;place-items:center;flex:none}
+#when{flex:1;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#when{min-width:118px}#when b{font-size:18px;font-weight:800;letter-spacing:-.01em}
+#when span{display:block;color:var(--mute);font-size:13px}
+#src{font-size:12px;font-weight:700;padding:5px 9px;border-radius:10px;background:rgba(75,163,255,.15);color:#9fd0ff;white-space:nowrap;max-width:42%;overflow:hidden;text-overflow:ellipsis;line-height:1.25;text-align:left}
+#src small{display:block;font-weight:500;opacity:.8;font-size:10.5px}
+#src.radar{background:rgba(255,196,61,.16);color:#ffd977}
+#src.nc{background:rgba(192,140,255,.16);color:#d9bdff}
+#src.past{background:rgba(255,255,255,.08);color:var(--mute)}
+#nowb{font-size:13px;font-weight:700;padding:6px 10px;border-radius:10px;border:1px solid var(--line)}
+.track{position:relative;margin:12px 2px 4px;height:44px;overflow:hidden}
+.days{position:absolute;left:0;right:0;top:0;height:16px;font-size:11.5px;color:var(--mute)}
+.days span{position:absolute;top:0;padding-left:4px;border-left:1px solid rgba(255,255,255,.18);white-space:nowrap;height:40px;pointer-events:none}
+.zone{position:absolute;top:22px;height:8px}
+#pastz{left:0;background:rgba(255,255,255,.07)}
+#radz{background:rgba(255,196,61,.45)}
+#ncz{background:linear-gradient(90deg,rgba(192,140,255,.65),rgba(192,140,255,.1))}
+#hz{background:repeating-linear-gradient(45deg,rgba(255,138,61,.3) 0 4px,transparent 4px 8px)}
+.nowmark{position:absolute;top:16px;width:2px;height:20px;background:var(--acc2);border-radius:1px}
+#slider{position:absolute;left:0;right:0;top:12px;width:100%;height:28px;margin:0;background:transparent;-webkit-appearance:none;appearance:none}
+#slider::-webkit-slider-runnable-track{height:8px;border-radius:4px;background:rgba(255,255,255,.1)}
+#slider::-moz-range-track{height:8px;border-radius:4px;background:rgba(255,255,255,.1)}
+#slider::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;margin-top:-8px;border-radius:12px;background:#fff;border:4px solid var(--acc);box-shadow:0 2px 8px rgba(0,0,0,.5)}
+#slider::-moz-range-thumb{width:16px;height:16px;border-radius:12px;background:#fff;border:4px solid var(--acc)}
+.keys{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--mute);margin:2px 0 4px}
+.keys i{display:inline-block;width:10px;height:6px;border-radius:2px;margin-right:4px;vertical-align:1px}
+.legend{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--mute)}
+.legend .bar{flex:1;height:6px;border-radius:3px;position:relative}
+.credits{font-size:10.5px;color:var(--mute);opacity:.75;margin-top:5px}
+.credits a{color:inherit}
+
+/* drawer */
+#drawer{position:fixed;left:0;right:0;bottom:0;height:calc(94dvh - var(--safe-t));z-index:1100;border-radius:22px 22px 0 0;background:var(--panel2);border:1px solid var(--line);border-bottom:0;box-shadow:0 -10px 40px rgba(0,0,0,.45);display:flex;flex-direction:column;max-width:640px;margin:0 auto;will-change:transform;touch-action:none}
+#drawer.anim{transition:transform .32s cubic-bezier(.2,.8,.2,1)}
+.grab{padding:8px 18px 10px;cursor:grab;touch-action:none;flex:none}
+.handle{width:42px;height:5px;border-radius:3px;background:rgba(255,255,255,.25);margin:0 auto 10px}
+.now{display:flex;align-items:center;gap:12px}
+.now .t{font-size:44px;font-weight:800;letter-spacing:-.03em;line-height:1}
+.now .d{flex:1;line-height:1.25}
+.now .d b{display:block;font-size:16px}
+.now .d span{color:var(--mute);font-size:13px}
+#next{margin:0 0 12px;padding:10px 10px 10px 12px;border-radius:14px;display:flex;gap:10px;align-items:center;background:rgba(255,255,255,.06);border:1px solid transparent}
+#next .ic{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;flex:none;background:rgba(255,255,255,.08)}
+#next .tx{flex:1;line-height:1.25}
+#next .tx small{display:block;font-size:11.5px;color:var(--mute);font-weight:600}
+#next .tx b{display:block;font-size:17px;font-weight:800;letter-spacing:-.01em}
+#next .tx span{display:block;font-size:12.5px;color:var(--mute)}
+#next .nb{height:36px;min-width:36px;padding:0 10px;border-radius:10px;border:1px solid var(--line);font-weight:700;font-size:13px;flex:none;display:grid;place-items:center}
+#next .nb.on{background:var(--acc2);color:#1b1300;border-color:transparent}
+#next.now{background:rgba(75,163,255,.2);border-color:rgba(75,163,255,.5)}#next.now .ic{background:#4ba3ff;color:#04121f}
+#next.soon{background:rgba(255,196,61,.14);border-color:rgba(255,196,61,.45)}#next.soon .ic{background:#ffc43d;color:#1b1300}
+#next.later .ic{background:rgba(75,163,255,.25);color:#9fd0ff}
+#next.dry .ic{color:#ffc43d}
+.ftop{display:flex;justify-content:flex-start;padding-bottom:10px}
+.daychips{padding:0 18px 8px}
+.daychips .chip{height:46px;flex-direction:column;justify-content:center;gap:0;padding:0 12px;line-height:1.1;font-size:13px}
+.daychips .chip small{font-weight:500;font-size:11px;opacity:.75;display:flex;align-items:center;gap:3px}
+.daychips .chip.on small{opacity:.8}
+.daysum{padding:2px 18px 10px;font-size:13px;color:var(--mute)}
+.daysum b{color:var(--ink)}
+.days7 .d{cursor:pointer}
+.days7 .d .rw{grid-column:1/-1;font-size:12px;color:#8fc7ff;margin-top:-4px;padding-left:2px}
+.dc{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:0 0 calc(24px + var(--safe-b));touch-action:pan-y}
+.sec{padding:14px 18px 4px}
+.sec h3{margin:0 0 10px;font-size:13px;font-weight:700;color:var(--mute)}
+.hours{display:flex;gap:6px;overflow-x:auto;padding:0 18px 8px;scrollbar-width:thin;touch-action:pan-x}
+.h{flex:none;width:66px;padding:9px 4px 8px;border-radius:14px;background:rgba(255,255,255,.04);text-align:center;display:flex;flex-direction:column;align-items:center;gap:3px;border:1px solid transparent}
+.h.cur{border-color:var(--acc)}
+.h .hh{font-size:12.5px;color:var(--mute);font-weight:600}
+.h .tt{font-size:17px;font-weight:800}
+.h .pp{font-size:11.5px;color:#8fc7ff;font-weight:700;display:flex;align-items:center;gap:2px}
+.h .pp.z{color:var(--mute);opacity:.6}
+.h .mm{font-size:11px;color:var(--mute);height:14px}
+.h .pbar{width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden}
+.h .pbar i{display:block;height:100%;background:var(--acc)}
+.h .ww{font-size:11.5px;color:var(--mute);display:flex;align-items:center;gap:3px}
+.h .gg{font-size:10.5px;color:var(--mute);opacity:.8}
+.dayl{flex:none;writing-mode:vertical-rl;transform:rotate(180deg);font-size:11px;color:var(--mute);font-weight:700;text-align:center;padding:4px 0}
+.days7 .d{display:grid;grid-template-columns:62px 34px 40px minmax(0,1fr) 40px 62px;align-items:center;gap:6px 8px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px;width:100%;text-align:left}
+.days7 .d .n{font-weight:700}
+.days7 .d .mn{color:var(--mute);text-align:right}
+.days7 .d .mx{font-weight:700}
+.rng{height:6px;border-radius:3px;background:rgba(255,255,255,.07);position:relative}
+.rng i{position:absolute;top:0;bottom:0;border-radius:3px;background:linear-gradient(90deg,#6cc1ff,#ffc43d,#ff7a3d)}
+.days7 .d .rp{font-size:12px;color:#8fc7ff;text-align:right;line-height:1.15}
+.days7 .d .rp small{display:block;color:var(--mute)}
+.fig{position:relative;height:190px}
+.fig svg{position:absolute;inset:0;width:100%;height:100%}
+.mtab{width:100%;border-collapse:collapse;font-size:13.5px}
+.mtab td{padding:8px 0;border-bottom:1px solid var(--line)}
+.mtab td.r{padding-left:12px;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.mtab i{width:10px;height:10px;border-radius:5px;display:inline-block;margin-right:8px}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.stats div{background:rgba(255,255,255,.04);border-radius:12px;padding:10px}
+.stats small{display:block;color:var(--mute);font-size:11.5px}
+.stats b{font-size:16px}
+.how{color:var(--mute);font-size:13.5px;line-height:1.5}
+.how b{color:var(--ink)}
+.foot{padding:16px 18px;color:var(--mute);font-size:12px}
+.foot a{color:inherit}
+
+/* settings */
+#setbg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1500;display:none}
+#settings{position:fixed;z-index:1600;left:50%;top:50%;transform:translate(-50%,-50%);width:min(560px,calc(100vw - 20px));max-height:calc(100dvh - 40px);overflow:auto;border-radius:20px;padding:6px 18px 18px;display:none;background:var(--panel2)}
+#settings h2{font-size:20px;margin:14px 0 4px}
+#settings h4{margin:18px 0 8px;font-size:13px;color:var(--mute)}
+#settings p.hint{margin:0 0 8px;color:var(--mute);font-size:13px}
+.mlist label{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.mlist input{width:20px;height:20px;accent-color:var(--acc);flex:none}
+.mlist .mn{flex:1}
+.mlist .mn b{display:block}
+.mlist .mn small{color:var(--mute)}
+.mlist i{width:10px;height:10px;border-radius:5px;flex:none}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{height:38px;padding:0 13px;border-radius:12px;border:1px solid var(--line);font-weight:600;font-size:14px}
+.seg button.on{background:var(--ink);color:#0e1621}
+.srow{display:flex;align-items:center;gap:12px;padding:6px 0;flex-wrap:wrap}
+.srow>span{flex:1;min-width:120px}
+.srow input[type=range]{flex:1.3;accent-color:var(--acc)}
+.sw{width:46px;height:28px;border-radius:14px;background:rgba(255,255,255,.15);position:relative;flex:none}
+.sw::after{content:"";position:absolute;left:3px;top:3px;width:22px;height:22px;border-radius:11px;background:#fff;transition:transform .2s}
+.sw.on{background:var(--acc)}.sw.on::after{transform:translateX(18px)}
+.sclose{position:sticky;top:0;display:flex;justify-content:flex-end;padding-top:10px;background:var(--panel2);z-index:1}
+.done{width:100%;height:48px;border-radius:14px;background:var(--acc);color:#04121f;font-weight:800;font-size:16px;margin-top:18px}
+.cost{font-size:12.5px;color:var(--mute);margin-top:6px}
+
+#toast{position:fixed;top:calc(150px + var(--safe-t));left:50%;transform:translateX(-50%);z-index:2000;padding:10px 16px;border-radius:14px;font-size:13.5px;font-weight:600;display:none;max-width:calc(100vw - 30px);text-align:center}
+#loading{position:fixed;bottom:calc(var(--peek) + 200px + var(--safe-b));left:50%;transform:translateX(-50%);z-index:950;font-size:13px;font-weight:700;padding:7px 14px;border-radius:14px;display:none}
+.me{width:18px;height:18px;border-radius:9px;background:var(--acc);border:3px solid #fff;box-shadow:0 0 0 6px rgba(75,163,255,.25)}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--panel2);color:var(--ink)}
+.leaflet-popup-content{margin:12px 14px;font:14px Figtree,sans-serif}
+.pbtn{margin-top:8px;height:36px;padding:0 12px;border-radius:10px;background:var(--acc);color:#04121f;font-weight:700}
+.leaflet-pane.labels{pointer-events:none}
+@media (min-width:1000px){
+  #drawer{left:auto;right:16px;margin:0;width:430px}
+  #tl{right:462px;left:16px;bottom:16px;max-width:760px;margin:0}
+  #top{left:16px;right:462px;margin:0}
+}
+@media (prefers-reduced-motion:reduce){#drawer.anim{transition:none}}
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div id="top">
+  <div class="row">
+    <div id="search">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" class="glass" type="search" autocomplete="off" placeholder="Cerca località" aria-label="Cerca località">
+      <div id="results" class="glass"></div>
+    </div>
+    <button class="ibtn glass" id="locate" aria-label="Usa la mia posizione"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
+    <button class="ibtn glass" id="openset" aria-label="Impostazioni"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.3"/><circle cx="10" cy="17" r="2.3"/></svg></button>
+  </div>
+  <div id="srcbar" class="glass">
+    <div class="hrow">
+      <div class="sw2" role="tablist" aria-label="Uso dei modelli"><button id="mSingle">Un modello</button><button id="mComb">Combina</button></div>
+      <div class="chips" id="mchips"></div>
+    </div>
+    <div class="hrow" id="howrow"><span>Come:</span><div class="chips" id="howchips"></div></div>
+    <div id="srcline"></div>
+  </div>
+  <button id="reload">📍 Previsioni per il centro della mappa</button>
+</div>
+<div id="loading" class="glass">Carico…</div>
+<div id="toast" class="glass"></div>
+
+<div id="tl" class="glass">
+  <div class="tlhead">
+    <button id="play" aria-label="Riproduci"><svg id="pi" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg></button>
+    <div id="when"><b>–</b><span>–</span></div>
+    <button id="src">–</button>
+    <button id="nowb">Ora</button>
+  </div>
+  <div class="track">
+    <div class="days" id="days"></div>
+    <div class="zone" id="pastz"></div>
+    <div class="zone" id="radz"></div>
+    <div class="zone" id="ncz"></div>
+    <div class="zone" id="hz"></div>
+    <div class="nowmark" id="nowm"></div>
+    <input id="slider" type="range" min="0" max="100" step="600" value="0" aria-label="Scorri il tempo">
+  </div>
+  <div class="keys"><span><i style="background:rgba(255,196,61,.7)"></i>radar reale</span><span><i style="background:rgba(192,140,255,.8)"></i>radar proiettato (nowcast)</span><span><i style="background:rgba(255,255,255,.25)"></i>modello</span></div>
+  <div class="legend" id="legend"></div>
+  <div class="credits">Modelli <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> (CC BY 4.0) · Radar <a href="https://www.rainviewer.com" target="_blank" rel="noopener">Weather data by RainViewer</a> · Mappa © Esri, OpenStreetMap</div>
+</div>
+
+<div id="drawer">
+  <div class="grab" id="grab">
+    <div class="handle"></div>
+    <div id="next" class="dry"><div class="ic"></div><div class="tx"><small>Prossima pioggia</small><b>…</b></div></div>
+    <div class="now" id="nowbox"><div class="t">–</div><div class="d"><b>Caricamento…</b><span></span></div></div>
+  </div>
+  <div class="dc" id="dc">
+    <div class="sec ftop"><div class="sw2" role="tablist" aria-label="Vista previsioni"><button id="fmH">Ora per ora</button><button id="fmD">Giorno per giorno</button></div></div>
+    <div id="hourlyV"><div class="chips daychips" id="daychips"></div><div class="daysum" id="daysum"></div><div class="hours" id="hours"></div></div>
+    <div id="dailyV" class="sec days7" style="padding-top:0"><div id="days7"></div></div>
+    <div class="sec"><h3>Dettagli adesso</h3><div class="stats" id="stats"></div></div>
+    <div class="sec"><h3>Pioggia nelle prossime 48 ore, modello per modello</h3><div class="fig" id="chart"><svg></svg></div></div>
+    <div class="sec"><h3>Confronto modelli</h3><table class="mtab" id="mtab"></table></div>
+    <div class="sec"><h3>Come funziona la mappa</h3><div class="how">
+      <p><b>Passato recente (giallo):</b> il radar vero, convertito in millimetri all'ora con la stessa scala colori dei modelli.</p>
+      <p><b>Prossime 3 ore (viola):</b> nowcast. L'app misura come si sono spostate le celle di pioggia negli ultimi 30–60 minuti e le proietta avanti con la stessa velocità e direzione. Dopo un'ora sfuma gradualmente nel modello, così non c'è uno stacco netto.</p>
+      <p><b>Oltre (modello):</b> la previsione numerica scelta in alto, con i campi completi del modello alla sua risoluzione nativa (ECMWF 9 km, ICON-D2 e ICON-2I 2 km, AROME 2,5 km). Anche il passato è ricostruito dai modelli (le prime ore di ogni corsa), perché il radar gratuito copre solo le ultime 2 ore. <b>Un modello</b> mostra solo quello; <b>Combina</b> unisce quelli spuntati: <b>Media</b> (tendenza più probabile), <b>Peggiore</b> (il valore più alto, scenario prudente), <b>Accordo</b> (quanti modelli vedono pioggia lì).</p>
+      <p>Tocca l'etichetta della fonte nella timeline per confrontare radar e modello nello stesso istante.</p>
+    </div></div>
+    <div class="foot">Previsioni: Open-Meteo, dati dei servizi meteo nazionali (ECMWF, DWD, ItaliaMeteo, Météo-France, NOAA, Met Office, MeteoSwiss, ECCC). Radar: RainViewer. Mappa: Esri, HERE, Garmin, © OpenStreetMap.</div>
+  </div>
+</div>
+
+<div id="setbg"></div>
+<div id="settings" role="dialog" aria-label="Impostazioni">
+  <div class="sclose"><button class="ibtn" id="closeset" aria-label="Chiudi">✕</button></div>
+  <h2>Impostazioni</h2>
+  <h4>Modelli disponibili nella barra</h4>
+  <p class="hint">Quelli spuntati compaiono in alto: li puoi guardare uno per volta o combinarli.</p>
+  <div class="mlist" id="mlist"></div>
+  <h4>Finestra temporale</h4>
+  <div class="srow"><span>Passato</span><div class="seg" id="pastSeg"></div></div>
+  <div class="srow"><span>Futuro</span><div class="seg" id="futSeg"></div></div>
+  <div id="areaSec"><h4>Area dei modelli (modalità di riserva)</h4>
+  <div class="srow"><span>Raggio</span><div class="seg" id="radSeg"></div></div>
+  <div class="srow"><span>Dettaglio</span><div class="seg" id="gridSeg"></div></div>
+  <div class="cost" id="cost"></div></div>
+  <h4>Mappa</h4>
+  <div class="srow"><span>Radar e nowcast</span><button class="sw" id="radarSw" aria-label="Radar"></button></div>
+  <div class="srow"><span>Opacità pioggia</span><input type="range" id="opac" min="30" max="100"></div>
+  <div class="srow"><span>Mappa chiara</span><button class="sw" id="lightSw" aria-label="Mappa chiara"></button></div>
+  <button class="done" id="applyset">Applica</button>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+{
+/* ================= config ================= */
+const MODELS=[
+  {id:'ecmwf_ifs',om:['ecmwf_ifs'],s:'ECMWF',n:'ECMWF IFS HRES',d:'9 km · globale, il riferimento europeo',c:'#4ba3ff'},
+  {id:'icon_seamless',om:['dwd_icon_d2','dwd_icon_eu','dwd_icon'],s:'ICON',n:'DWD ICON',d:'2–11 km · Germania, ottimo in Europa',c:'#3ddc97'},
+  {id:'italia_meteo_arpae_icon_2i',om:['italia_meteo_arpae_icon_2i'],s:'ICON-2I',n:'ItaliaMeteo ARPAE ICON-2I',d:'2 km · Italia, circa 3 giorni',c:'#ffc43d'},
+  {id:'meteofrance_seamless',om:['meteofrance_arome_france0025','meteofrance_arpege_europe'],s:'AROME',n:'Météo-France AROME/ARPEGE',d:'1–10 km · forte sui temporali',c:'#ff7a3d'},
+  {id:'ecmwf_aifs025_single',om:['ecmwf_aifs025_single'],s:'AIFS',n:'ECMWF AIFS (IA)',d:'25 km · modello a intelligenza artificiale',c:'#b48cff'},
+  {id:'gfs_seamless',om:['ncep_gfs013','ncep_gfs025'],s:'GFS',n:'NOAA GFS',d:'13–25 km · americano, globale',c:'#ff5a7a'},
+  {id:'ukmo_seamless',om:['ukmo_global_deterministic_10km'],s:'UKMO',n:'UK Met Office',d:'2–10 km · globale',c:'#5ee0ff'},
+  {id:'meteoswiss_icon_seamless',om:['meteoswiss_icon_ch1','meteoswiss_icon_ch2'],s:'CH',n:'MeteoSwiss ICON',d:'1–2 km · Alpi e Nord Italia',c:'#d4ff5e'},
+  {id:'gem_seamless',om:['cmc_gem_gdps_15km'],s:'GEM',n:'Canada GEM',d:'15 km · globale',c:'#ff9de2'},
+];
+const HOWS={mean:['Media','la tendenza più probabile'],max:['Peggiore','il valore più alto tra i modelli'],agree:['Accordo','quanti modelli vedono pioggia']};
+const MK=Object.fromEntries(MODELS.map(m=>[m.id,m]));
+const DEF={fmode:'h',alert:false,lat:44.8381,lon:11.6198,place:'Ferrara',models:['ecmwf_ifs','icon_seamless','italia_meteo_arpae_icon_2i'],combine:false,how:'mean',focus:'ecmwf_ifs',combo:['ecmwf_ifs','icon_seamless','italia_meteo_arpae_icon_2i'],past:1,fut:3,radius:250,grid:13,opac:80,radar:true,light:false};
+let S=Object.assign({},DEF);
+try{const o=JSON.parse(localStorage.getItem('nembo.s3')||'{}');Object.assign(S,o)}catch(e){}
+const save=()=>{try{localStorage.setItem('nembo.s3',JSON.stringify(S))}catch(e){}};
+const NC_MAX=180*60, NC_FADE0=60*60; // nowcast length and when it starts to blend into the model
+
+/* ================= helpers ================= */
+const $=id=>document.getElementById(id);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+let TZ=Intl.DateTimeFormat().resolvedOptions().timeZone;
+const fmt=(t,o)=>new Intl.DateTimeFormat('it-IT',Object.assign({timeZone:TZ},o)).format(new Date(t*1000));
+const hm=t=>fmt(t,{hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
+const hr=t=>+fmt(t,{hour:'numeric',hourCycle:'h23'});
+const dayKey=t=>fmt(t,{year:'numeric',month:'2-digit',day:'2-digit'});
+const nowS=()=>Date.now()/1000;
+const wd=t=>{const k=dayKey(t),n=nowS();return k===dayKey(n)?'Oggi':k===dayKey(n+86400)?'Domani':k===dayKey(n-86400)?'Ieri':fmt(t,{weekday:'short',day:'numeric'}).replace(/^./,c=>c.toUpperCase())};
+const rel=s=>{const a=Math.abs(s);if(a<300)return'adesso';const h=Math.floor(a/3600),m=Math.round((a%3600)/600)*10;let t=h>=6?h+' h':((h?h+' h ':'')+(m&&m<60?m+' min':'')).trim()||'1 h';return s<0?t+' fa':'tra '+t};
+const toast=(m,ms=4000)=>{const e=$('toast');e.textContent=m;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',ms)};
+const km=(a,b,c,d)=>{const r=Math.PI/180;return 6371*Math.hypot((d-b)*r*Math.cos((a+c)/2*r),(c-a)*r)};
+const intens=v=>v<1?'debole':v<4?'moderata':v<10?'forte':'molto forte';
+const dec=(v,d=1)=>v.toFixed(d).replace('.',',');
+const busy=(m)=>{const e=$('loading');if(m){e.textContent=m;e.style.display='block'}else e.style.display='none'};
+
+const MEM={};
+async function getJSON(url,ttl=900){
+  if(MEM[url]&&Date.now()-MEM[url].t<ttl*1000)return MEM[url].d;
+  const r=await fetch(url);
+  if(!r.ok){let why='';try{why=(await r.json()).reason||''}catch(e){}const err=new Error(why||('HTTP '+r.status));err.status=r.status;throw err}
+  const d=await r.json();MEM[url]={t:Date.now(),d};return d;
+}
+
+/* ================= colour ramps ================= */
+const RAIN=[[0.1,[110,180,255,0]],[0.2,[110,185,255,.5]],[0.6,[45,125,245,.68]],[1.5,[25,185,125,.78]],[3,[250,215,40,.84]],[6,[255,140,25,.88]],[12,[238,45,45,.92]],[25,[205,35,170,.94]],[60,[255,235,255,.96]]];
+const AGREE=[[0.1,[140,150,255,0]],[0.3,[140,160,255,.4]],[0.55,[120,95,240,.62]],[0.8,[175,70,230,.78]],[1,[240,70,190,.88]]];
+function lut(stops,log){
+  const o=new Uint8ClampedArray(256*4),lo=stops[0][0],hi=stops[stops.length-1][0];
+  for(let i=0;i<256;i++){const f=i/255,v=log?lo*Math.pow(hi/lo,f):lo+(hi-lo)*f;let j=0;while(j<stops.length-2&&v>stops[j+1][0])j++;
+    const[a,ca]=stops[j],[b,cb]=stops[j+1],u=clamp(log?Math.log(v/a)/Math.log(b/a):(v-a)/(b-a),0,1);
+    for(let c=0;c<4;c++)o[i*4+c]=c<3?ca[c]+(cb[c]-ca[c])*u:255*(ca[3]+(cb[3]-ca[3])*u)}return o}
+const LR=lut(RAIN,true),LA=lut(AGREE,false);
+const LRlo=Math.log(RAIN[0][0]),LRspan=Math.log(RAIN[RAIN.length-1][0]/RAIN[0][0]);
+const idxR=v=>v<0.1?-1:Math.round(clamp((Math.log(v)-LRlo)/LRspan,0,1)*255);
+const idxA=v=>v<0.1?-1:Math.round(clamp((v-0.1)/0.9,0,1)*255);
+const gradCss=L=>'linear-gradient(90deg,'+[0,40,80,120,160,200,255].map(i=>`rgba(${L[i*4]},${L[i*4+1]},${L[i*4+2]},${Math.max(.3,L[i*4+3]/255)})`).join(',')+')';
+
+/* ================= weather icons ================= */
+const CL='M19 47h28a10 10 0 0 0 .6-20A14 14 0 0 0 20.4 24 11.5 11.5 0 0 0 19 47z';
+function wxIcon(code,day=1,sz=34){
+  const sun=(x,y,s)=>`<g transform="translate(${x} ${y}) scale(${s})"><circle r="10" fill="#ffc43d"/>${[0,45,90,135,180,225,270,315].map(a=>`<path d="M0-15v-5" stroke="#ffc43d" stroke-width="3.4" stroke-linecap="round" transform="rotate(${a})"/>`).join('')}</g>`;
+  const moon=(x,y,s)=>`<g transform="translate(${x} ${y}) scale(${s})"><path d="M6-12A13 13 0 1 0 12 6 10 10 0 0 1 6-12z" fill="#c9d4ff"/></g>`;
+  const cloud=(c='#dfe7f1',dy=0)=>`<path d="${CL}" fill="${c}" transform="translate(0 ${dy})"/>`;
+  const drops=n=>[...Array(n)].map((_,i)=>`<path d="M${22+i*9} 48l-3 8" stroke="#4ba3ff" stroke-width="3.4" stroke-linecap="round"/>`).join('');
+  const flakes=n=>[...Array(n)].map((_,i)=>`<circle cx="${22+i*9}" cy="${52+(i%2)*4}" r="2.6" fill="#fff"/>`).join('');
+  const bolt=`<path d="M34 42l-7 12h6l-3 9 10-14h-6l3-7z" fill="#ffc43d"/>`;
+  const orb=day?sun:moon;let g;
+  if(code===0)g=day?sun(32,32,1.15):moon(32,32,1.2);
+  else if(code<=2)g=orb(22,22,.85)+cloud('#dfe7f1',code===1?6:2);
+  else if(code===3)g=cloud('#b9c5d3');
+  else if(code===45||code===48)g=cloud('#9aa8b8',-8)+[44,51,58].map((y,i)=>`<path d="M${14+i*3} ${y}h${36-i*6}" stroke="#9aa8b8" stroke-width="3.4" stroke-linecap="round"/>`).join('');
+  else if(code>=51&&code<=57)g=cloud('#c6d1dd',-6)+drops(2);
+  else if(code>=61&&code<=67)g=cloud(code>=65?'#8e9cad':'#b3c0ce',-6)+drops(code>=63?4:3);
+  else if((code>=71&&code<=77)||code===85||code===86)g=cloud('#c6d1dd',-6)+flakes(4);
+  else if(code>=80&&code<=82)g=orb(22,18,.7)+cloud('#b3c0ce',-6)+drops(3);
+  else if(code>=95)g=cloud('#7d8a9b',-6)+bolt+drops(2);
+  else g=cloud();
+  return `<svg width="${sz}" height="${sz}" viewBox="0 0 64 64" aria-hidden="true">${g}</svg>`;
+}
+const WX={0:'Sereno',1:'Poco nuvoloso',2:'Parzialmente nuvoloso',3:'Coperto',45:'Nebbia',48:'Nebbia con brina',51:'Pioviggine debole',53:'Pioviggine',55:'Pioviggine intensa',56:'Pioviggine gelata',57:'Pioviggine gelata',61:'Pioggia debole',63:'Pioggia',65:'Pioggia forte',66:'Pioggia gelata',67:'Pioggia gelata',71:'Neve debole',73:'Neve',75:'Neve forte',77:'Nevischio',80:'Rovesci deboli',81:'Rovesci',82:'Rovesci violenti',85:'Rovesci di neve',86:'Rovesci di neve forti',95:'Temporale',96:'Temporale con grandine',99:'Temporale con grandine'};
+const arrow=(dir,sz=12)=>`<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" style="transform:rotate(${dir+180}deg)"><path d="M12 2l6 18-6-4-6 4z" fill="currentColor"/></svg>`;
+const dropI=`<svg width="10" height="10" viewBox="0 0 24 24"><path d="M12 2s7 8 7 13a7 7 0 0 1-14 0c0-5 7-13 7-13z" fill="currentColor"/></svg>`;
+
+/* ================= map ================= */
+const map=L.map('map',{zoomControl:false,attributionControl:false,minZoom:4,maxZoom:12}).setView([S.lat,S.lon],7);
+map.createPane('rain').style.zIndex=430;map.getPane('rain').style.pointerEvents='none';
+map.createPane('labels').style.zIndex=440;map.getPane('labels').classList.add('labels');
+let base,labels;
+function setBase(){
+  [base,labels].forEach(l=>l&&map.removeLayer(l));
+  const s=S.light?'Light':'Dark';
+  base=L.tileLayer(`https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_${s}_Gray_Base/MapServer/tile/{z}/{y}/{x}`,{maxZoom:16}).addTo(map);
+  labels=L.tileLayer(`https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_${s}_Gray_Reference/MapServer/tile/{z}/{y}/{x}`,{maxZoom:16,pane:'labels',opacity:.9}).addTo(map);
+}
+setBase();
+const cvs=L.DomUtil.create('canvas','leaflet-zoom-hide',map.getPane('rain'));const ctx=cvs.getContext('2d');
+const me=L.marker([S.lat,S.lon],{icon:L.divIcon({className:'',html:'<div class="me"></div>',iconSize:[18,18],iconAnchor:[9,9]}),zIndexOffset:1000,interactive:false}).addTo(map);
+
+/* ================= model grid ================= */
+let GD=null;           // {G,lat0,lon0,sla,slo,la,lo,clat,clon,N,times,by:{model:{a,last}}}
+const GP=1.5; // grid stretching: dense near the point, sparse at the edges
+const axis=G=>[...Array(G)].map((_,k)=>{const u=k/(G-1)*2-1;return Math.sign(u)*Math.pow(Math.abs(u),GP)});
+const fracIdx=(d,D,G)=>{const u=d/D;if(u<-1||u>1)return -1;return (Math.sign(u)*Math.pow(Math.abs(u),1/GP)+1)/2*(G-1)};
+function gridDef(){
+  const G=S.grid,R=S.radius,dla=R/111,dlo=R/(111*Math.cos(S.lat*Math.PI/180)),ax=axis(G),la=[],lo=[];
+  for(let j=0;j<G;j++)for(let i=0;i<G;i++){la.push((S.lat+ax[j]*dla).toFixed(3));lo.push((S.lon+ax[i]*dlo).toFixed(3))}
+  return{G,dla,dlo,la,lo,clat:S.lat,clon:S.lon,N:G*G,times:null,by:{},key:[S.lat.toFixed(3),S.lon.toFixed(3),G,R,S.past,S.fut].join('|')};
+}
+/* Open-Meteo free tier: 600 calls/minute, 5000/hour, 10000/day. A multi-location request costs one call per location. */
+const CALLS=[];
+async function omSlot(n){
+  for(let k=0;k<40;k++){const now=Date.now();while(CALLS.length&&now-CALLS[0].t>61000)CALLS.shift();
+    const used=CALLS.reduce((a,c)=>a+c.n,0);if(used+n<=540){CALLS.push({t:now,n});return}
+    busy('Attendo il limite al minuto di Open-Meteo…');await new Promise(r=>setTimeout(r,3000))}
+}
+async function omJSON(url,n){
+  await omSlot(n);
+  try{return await getJSON(url)}catch(e){if(e.status===429&&/inute/.test(e.message)){busy('Limite al minuto di Open-Meteo: riprovo tra poco…');await new Promise(r=>setTimeout(r,62000));CALLS.length=0;return getJSON(url)}throw e}
+}
+function cacheGet(k){try{const o=JSON.parse(localStorage.getItem('nembo.g.'+k)||'null');if(o&&Date.now()-o.t<45*60e3)return o}catch(e){}return null}
+function cachePut(k,o){try{
+  for(let i=localStorage.length-1;i>=0;i--){const kk=localStorage.key(i);if(kk&&kk.startsWith('nembo.g.')){try{const v=JSON.parse(localStorage.getItem(kk));if(Date.now()-v.t>45*60e3)localStorage.removeItem(kk)}catch(e){localStorage.removeItem(kk)}}}
+  localStorage.setItem('nembo.g.'+k,JSON.stringify(o))}catch(e){}}
+async function fetchModelGrid(m,g){
+  const ck=g.key+'|'+m,c=cacheGet(ck);
+  if(c)return c;
+  const CH=320,parts=[];
+  for(let s=0;s<g.N;s+=CH){
+    const la=g.la.slice(s,s+CH).join(','),lo=g.lo.slice(s,s+CH).join(',');
+    parts.push(omJSON(`https://api.open-meteo.com/v1/forecast?latitude=${la}&longitude=${lo}&hourly=precipitation&models=${m}&past_days=${S.past}&forecast_days=${S.fut}&timeformat=unixtime&timezone=GMT`,Math.min(CH,g.N-s)*Math.ceil((S.past+S.fut)/14)));
+  }
+  const res=(await Promise.all(parts)).flatMap(r=>Array.isArray(r)?r:[r]);
+  const times=res[0].hourly.time,nt=times.length;
+  const q=new Array(nt*g.N);let any=false,last=-1;
+  res.forEach((loc,k)=>{const p=loc.hourly.precipitation||[];for(let i=0;i<nt;i++){const v=p[i];if(v==null)q[i*g.N+k]=-1;else{q[i*g.N+k]=Math.round(v*10);any=true;if(i>last)last=i}}});
+  const o={t:Date.now(),times,q,any,last};cachePut(ck,o);return o;
+}
+const wanted=()=>S.combine?S.combo.filter(m=>S.models.includes(m)):[S.focus];
+async function ensureGrid(force){
+  if(force||!GD||GD.key!==gridDef().key){GD=gridDef()}
+  const need=wanted().filter(m=>!GD.by[m]&&!(GD.fail||{})[m]);
+  if(!need.length){afterGrid();return}
+  busy('Carico '+need.map(m=>MK[m].s).join(', ')+'…');
+  const res=await Promise.allSettled(need.map(m=>fetchModelGrid(m,GD)));
+  busy(null);const bad=[];GD.fail=GD.fail||{};
+  res.forEach((r,i)=>{const m=need[i];
+    if(r.status!=='fulfilled'){GD.fail[m]=1;bad.push(MK[m].s+(r.reason&&r.reason.status===429?' (limite giornaliero raggiunto)':''));return}
+    const o=r.value;if(!o.any){GD.fail[m]=1;bad.push(MK[m].s+' (non copre quest\'area)');return}
+    if(!GD.times)GD.times=o.times;
+    const a=new Float32Array(o.q.length);for(let i=0;i<a.length;i++)a[i]=o.q[i]<0?NaN:o.q[i]/10;
+    GD.by[m]={a,last:o.times[Math.max(0,o.last)]};
+  });
+  if(bad.length)toast('Non disponibile: '+bad.join(', '));
+  afterGrid();
+}
+async function ensureModels(force){
+  setMosaic();
+  if(!OMX)return ensureGrid(force);
+  const need=[...new Set(wanted().flatMap(m=>MK[m].om||[]))];
+  busy('Carico i modelli…');await Promise.all(need.map(omMeta));busy(null);
+  const bad=wanted().filter(m=>!modelOK(m));
+  if(bad.length)toast('Non disponibile qui: '+bad.map(m=>MK[m].s).join(', '));
+  afterGrid();
+}
+function afterGrid(){buildBar();buildTimeline();setT(T);renderNext()}
+const loadedOf=ms=>GD?ms.filter(m=>GD.by[m]):[];
+function drawArea(){}
+
+/* model field at time t (seconds), returns Float32Array N or null */
+function modelField(t,ms,how){
+  if(!GD||!GD.times)return null;ms=loadedOf(ms);if(!ms.length)return null;
+  const{times,N,by}=GD,u=(t-(times[0]-1800))/3600;
+  if(u<0||u>times.length-1)return null;
+  const i=Math.min(Math.floor(u),times.length-2),f=u-i,out=new Float32Array(N);let anyVal=false;
+  for(let k=0;k<N;k++){
+    let s=0,n=0,mx=-1,wet=0;
+    for(const m of ms){const a=by[m].a,v0=a[i*N+k],v1=a[(i+1)*N+k];let v=v0*(1-f)+v1*f;if(isNaN(v))v=f<.5?v0:v1;if(isNaN(v))continue;n++;s+=v;if(v>mx)mx=v;wet+=clamp((v-0.1)/0.4,0,1)}
+    out[k]=!n?NaN:how==='agree'?wet/n:how==='max'?mx:s/n;if(n)anyVal=true;
+  }return anyVal?out:null;
+}
+const curHow=()=>S.combine?S.how:'mean';
+
+/* ================= radar (RainViewer, decoded to mm/h) ================= */
+const RV_RAIN='63615914 66635a19 69665c1e 6c685d24 6f6b5f29 726e612e 75706234 78736439 7c75653e 7f786744 827b6949 857d6a4e 88806c54 8b826d59 8e856f5e 92887164 9e93756e aa9e7978 b6a97e82 c2b4828c cec08796 d2c48ba0 d6c88faa dacc93b4 ded097be 88ddeeff 6cd1ebff 51c5e8ff 36bae5ff 1baee2ff 00a3e0ff 009ad5ff 0091caff 0088bfff 007fb4ff 0077aaff 0070a3ff 00699cff 006295ff 005b8eff 005588ff 005180ff 004e78ff 004a70ff 004768ff ffee00ff ffe000ff ffd200ff ffc500ff ffb700ff ffaa00ff ff9f00ff ff9500ff ff8b00ff ff8100ff ff4400ff f23600ff e62800ff d91b00ff cd0d00ff c10000ff a80000ff 8f0000ff 760000ff 5d0000ff ffaaffff ff9fffff ff95ffff ff8bffff ff81ffff ff77ffff ff6cffff ff62ffff ff58ffff ff4effff ffffffff'.split(' ');
+const RV_SNOW='cfffff00 ceffff0c cdffff19 ccffff26 cbffff33 cbffff3f caffff4c c9ffff59 c8ffff66 c7ffff72 c7ffff7f c6ffff8c c5ffff99 c4ffffa5 c3ffffb2 c3ffffbf c2ffffcc c1ffffd8 c0ffffe5 bffffff2 bfffffff b8f8ffff b2f2ffff abebffff a5e5ffff 9fdfffff 98d8ffff 92d2ffff 8bcbffff 85c5ffff 7fbfffff 78b8ffff 72b2ffff 6babffff 65a5ffff 5f9fffff 5b9bffff 5898ffff 5595ffff 5292ffff 4f8fffff 4b8bffff 4888ffff 4585ffff 4282ffff 3f7fffff 3b7bffff 3878ffff 3575ffff 3272ffff 2f6fffff 2b6bffff 2868ffff 2565ffff 2262ffff 1f5fffff 1b5bffff 1858ffff 1555ffff 1252ffff 0f4fffff 0c4bffff 0948ffff 0645ffff 0242ffff 003fffff'.split(' ');
+// code = dBZ + 11  (dBZ -10 -> 1). 0 = no echo
+const PAL=[];RV_RAIN.forEach((h,i)=>PAL.push([parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16),parseInt(h.slice(6,8),16),i+1]));
+RV_SNOW.forEach((h,i)=>PAL.push([parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16),parseInt(h.slice(6,8),16),i+1]));
+const CODE=new Map();
+function decodeU(u){ // u = pixel as little-endian uint32 (ABGR)
+  const a=u>>>24;if(a<30)return 0;let c=CODE.get(u);if(c!==undefined)return c;
+  const r=u&255,g=(u>>>8)&255,b=(u>>>16)&255;let best=1e9;c=0;
+  for(const p of PAL){const d=(p[0]-r)**2+(p[1]-g)**2+(p[2]-b)**2+((p[3]-a)**2)*.3;if(d<best){best=d;c=p[4]}}
+  if(best>2500)c=0;CODE.set(u,c);return c;
+}
+/* ================= mosaic: follows the visible map (like Windy), shared by radar and models =================
+   Radar tiles are read one zoom level below the map (max 7, RainViewer's limit), so the work stays
+   proportional to what is on screen whatever the zoom. Models are resampled at half that resolution. */
+let MOS=null; // {z,x0,y0,tw,th,W,H,mw,mh,lats[mh],lons[mw],key,bbox:[w,s,e,n],km}
+const merc=(lat,lon,z)=>{const n=256*2**z,s=Math.sin(clamp(lat,-85,85)*Math.PI/180);return[(lon+180)/360*n,(0.5-Math.log((1+s)/(1-s))/(4*Math.PI))*n]};
+const unmercLat=(py,z)=>{const n=256*2**z;return Math.atan(Math.sinh(Math.PI*(1-2*py/n)))*180/Math.PI};
+const unmercLon=(px,z)=>px/(256*2**z)*360-180;
+function desiredMosaic(){
+  const zm=map.getZoom(),z=clamp(Math.round(zm)-1,3,7),b=map.getBounds();
+  const[x1,y1]=merc(b.getNorth(),b.getWest(),z),[x2,y2]=merc(b.getSouth(),b.getEast(),z),N=2**z;
+  let tx0=Math.floor(x1/256),tx1=Math.floor(x2/256),ty0=Math.floor(y1/256),ty1=Math.floor(y2/256);
+  if(tx1-tx0<7){tx0--;tx1++}if(ty1-ty0<6){ty0--;ty1++}           // one tile of margin while it stays small
+  ty0=Math.max(0,ty0);ty1=Math.min(N-1,ty1);tx0=Math.max(0,tx0);tx1=Math.min(N-1,tx1);
+  return{z,x0:tx0,y0:ty0,tw:tx1-tx0+1,th:ty1-ty0+1};
+}
+function mosaicCovers(m,d){return m&&m.z===d.z&&d.x0>=m.x0&&d.y0>=m.y0&&d.x0+d.tw<=m.x0+m.tw&&d.y0+d.th<=m.y0+m.th}
+function setMosaic(force){
+  const d=desiredMosaic();if(!force&&mosaicCovers(MOS,d))return false;
+  const W=d.tw*256,H=d.th*256,mw=Math.min(W>>1,420),mh=Math.min(H>>1,Math.round(420*H/W)||1);
+  const lats=new Float64Array(mh),lons=new Float64Array(mw);
+  for(let i=0;i<mw;i++)lons[i]=unmercLon(d.x0*256+(i+.5)*W/mw,d.z);
+  for(let j=0;j<mh;j++)lats[j]=unmercLat(d.y0*256+(j+.5)*H/mh,d.z);
+  const kmPx=40075*Math.cos((lats[mh>>1]||45)*Math.PI/180)/(256*2**d.z);
+  MOS=Object.assign(d,{W,H,mw,mh,lats,lons,key:[d.z,d.x0,d.y0,d.tw,d.th].join('_'),bbox:[lons[0],lats[mh-1],lons[mw-1],lats[0]],km:kmPx});
+  FR.clear();RAST.clear();LASTGOOD=null;
+  for(const k in META){const m=META[k];if(m&&m.bounds){delete m.sub;m.ok=m.hasP&&overlaps(m.bounds,MOS.bbox)}}
+  if(RV){for(const f of RV.frames){f.c=null;f.p=null}RV.V=null}
+  return true;
+}
+const overlaps=(a,b)=>a[0]<=b[2]&&a[2]>=b[0]&&a[1]<=b[3]&&a[3]>=b[1];
+const mosXY=(lat,lon)=>{const[x,y]=merc(lat,lon,MOS.z);return[x-MOS.x0*256,y-MOS.y0*256]}; // in radar pixels
+let mosT=0;
+map.on('moveend zoomend',()=>{clearTimeout(mosT);mosT=setTimeout(async()=>{
+  if(!setMosaic())return;
+  busy('Carico la zona visibile…');
+  await Promise.all([ensureModels(),refreshRadar()]);busy(null);setT(T);renderNext();
+},350)});
+
+/* ================= radar (RainViewer, decoded to mm/h) ================= */
+// dBZ -> mm/h (Marshall-Palmer Z=200R^1.6); echoes below 10 dBZ are dropped as clutter / mist
+const MM=new Float32Array(100);for(let c=1;c<100;c++){const dbz=c-11;MM[c]=dbz<10?0:Math.pow(Math.pow(10,dbz/10)/200,1/1.6)}
+let RV=null; // {host,frames:[{time,path,c:Uint8Array(W*H)|null,mk}],V}
+const loadImg=u=>new Promise(r=>{const i=new Image();i.crossOrigin='anonymous';i.onload=()=>r(i);i.onerror=()=>r(null);setTimeout(()=>r(null),20000);i.src=u});
+function decodeFrame(f){
+  if(f.c&&f.mk===MOS.key)return Promise.resolve();
+  if(f.p&&f.pk===MOS.key)return f.p;
+  const M=MOS;f.pk=M.key;
+  f.p=(async()=>{
+    const cv=document.createElement('canvas');cv.width=M.W;cv.height=M.H;const g=cv.getContext('2d',{willReadFrequently:true});
+    const n=M.tw*M.th,imgs=await Promise.all([...Array(n)].map((_,k)=>loadImg(`${RV.host}${f.path}/256/${M.z}/${M.x0+k%M.tw}/${M.y0+Math.floor(k/M.tw)}/2/0_1.png`)));
+    if(MOS!==M)return;
+    imgs.forEach((im,k)=>{if(im)g.drawImage(im,(k%M.tw)*256,Math.floor(k/M.tw)*256)});
+    const u32=new Uint32Array(g.getImageData(0,0,M.W,M.H).data.buffer),c=new Uint8Array(M.W*M.H);
+    for(let i=0;i<c.length;i++)c[i]=decodeU(u32[i]);
+    f.c=c;f.mk=M.key;f.ok=imgs.filter(Boolean).length;
+  })();
+  return f.p;
+}
+async function refreshRadar(){
+  if(!RV||!MOS)return;const n=RV.frames.length,key=[n-1,n-4,n-7].filter(i=>i>=0).map(i=>RV.frames[i]);
+  await Promise.all(key.map(decodeFrame));if(!MOS)return;computeMotion();buildTimeline();
+  // remaining frames in the background, newest first
+  (async()=>{const mk=MOS.key;for(const f of RV.frames.slice().reverse()){if(MOS.key!==mk)return;if(f.c&&f.mk===mk)continue;await decodeFrame(f);const sa=sourceAt(T);if(sa.f===f)setT(T)}})();
+}
+async function loadRadar(){
+  if(!S.radar){RV=null;return}
+  try{
+    const j=await getJSON('https://api.rainviewer.com/public/weather-maps.json',240);
+    const old=RV?Object.fromEntries(RV.frames.map(f=>[f.path,f])):{};
+    RV={host:j.host,V:RV&&RV.V,frames:(j.radar&&j.radar.past||[]).map(f=>old[f.path]||{time:f.time,path:f.path,c:null})};
+    if(!RV.frames.length){RV=null;return}
+    await refreshRadar();setT(T);renderNext();
+  }catch(e){console.warn('radar',e);RV=null}
+}
+/* motion field by block matching on a 4x coarser copy (only >=10 dBZ) */
+function coarse(c){const M=MOS,cw=M.W>>2,ch=M.H>>2,o=new Uint8Array(cw*ch);
+  for(let y=0;y<ch;y++)for(let x=0;x<cw;x++){let m=0;for(let yy=0;yy<4;yy++){const r=(y*4+yy)*M.W+x*4;for(let xx=0;xx<4;xx++){const v=c[r+xx];if(v>m)m=v}}o[y*cw+x]=m>21?m-21:0}
+  return{o,cw,ch}}
+function blockMotion(A,B,R){ // displacement (coarse px) moving B onto A, per 16x16 block
+  const{o:a,cw,ch}=A,b=B.o,bs=16,nbx=Math.max(1,Math.floor(cw/bs)),nby=Math.max(1,Math.floor(ch/bs)),out=[];
+  for(let by=0;by<nby;by++)for(let bx=0;bx<nbx;bx++){
+    let wet=0;for(let y=by*bs;y<(by+1)*bs;y++)for(let x=bx*bs;x<(bx+1)*bs;x++)if(a[y*cw+x]>0)wet++;
+    if(wet<bs*bs*0.06){out.push([NaN,NaN]);continue}
+    let best=1e18,bdx=0,bdy=0,zero=0;
+    for(let dy=-R;dy<=R;dy++)for(let dx=-R;dx<=R;dx++){
+      let sad=0,cnt=0;
+      for(let y=by*bs;y<(by+1)*bs;y++){const sy=y-dy;if(sy<0||sy>=ch)continue;for(let x=bx*bs;x<(bx+1)*bs;x++){const sx=x-dx;if(sx<0||sx>=cw)continue;const p=a[y*cw+x],q=b[sy*cw+sx];if(p||q){sad+=Math.abs(p-q);cnt++}}}
+      const sc=cnt?sad/cnt+0.02*(dx*dx+dy*dy):1e9;if(dx===0&&dy===0)zero=sc;if(sc<best){best=sc;bdx=dx;bdy=dy}}
+    out.push(best<zero*0.97?[bdx,bdy]:[0,0]);
+  }return{v:out,nbx,nby};
+}
+function computeMotion(){
+  RV.V=null;const F=RV.frames,n=F.length;if(n<4||!MOS)return;
+  const a=F[n-1],b=F[n-4],c=n>=7?F[n-7]:null,ok=f=>f&&f.c&&f.mk===MOS.key;if(!ok(a)||!ok(b))return;
+  const R=clamp(Math.ceil(55/(MOS.km*4)),2,10); // up to ~110 km/h over 30 min
+  const A=coarse(a.c),B=coarse(b.c),m1=blockMotion(A,B,R),dt1=(a.time-b.time)/60;
+  let m2=null,dt2=0;if(ok(c)){m2=blockMotion(B,coarse(c.c),R);dt2=(b.time-c.time)/60}
+  const{nbx,nby}=m1,vs=[];
+  for(let k=0;k<nbx*nby;k++){const p=m1.v[k];let vx=p[0]/dt1,vy=p[1]/dt1,w=isNaN(vx)?0:1;
+    if(m2&&!isNaN(m2.v[k][0])){if(w){vx=(vx+m2.v[k][0]/dt2)/2;vy=(vy+m2.v[k][1]/dt2)/2}else{vx=m2.v[k][0]/dt2;vy=m2.v[k][1]/dt2;w=1}}
+    vs.push(w?[vx,vy]:null)}
+  const valid=vs.filter(Boolean),med=k=>{const s=valid.map(v=>v[k]).sort((x,y)=>x-y);return s[s.length>>1]};
+  const g=valid.length?[med(0),med(1)]:[0,0];
+  let vx=vs.map(v=>v?v[0]:g[0]),vy=vs.map(v=>v?v[1]:g[1]);
+  for(let pass=0;pass<2;pass++){const nx=[],ny=[];for(let y=0;y<nby;y++)for(let x=0;x<nbx;x++){let sx=0,sy=0,w=0;for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++){const X=x+i,Y=y+j;if(X<0||Y<0||X>=nbx||Y>=nby)continue;const ww=i||j?1:2;sx+=vx[Y*nbx+X]*ww;sy+=vy[Y*nbx+X]*ww;w+=ww}nx.push(sx/w);ny.push(sy/w)}vx=nx;vy=ny}
+  // to radar pixels per minute
+  RV.V={vx:Float32Array.from(vx,v=>v*4),vy:Float32Array.from(vy,v=>v*4),nbx,nby,bs:64,mk:MOS.key,glob:[g[0]*4,g[1]*4],kmh:[g[0]*4*MOS.km*60,g[1]*4*MOS.km*60]};
+}
+function velAt(mx,my){ // radar px per minute, bilinear over block centres
+  const V=RV.V,bs=V.bs,nx=V.nbx,ny=V.nby,fx=clamp(mx/bs-.5,0,nx-1),fy=clamp(my/bs-.5,0,ny-1),i=Math.min(Math.floor(fx),Math.max(0,nx-2)),j=Math.min(Math.floor(fy),Math.max(0,ny-2)),u=nx>1?fx-i:0,v=ny>1?fy-j:0;
+  const i1=Math.min(i+1,nx-1),j1=Math.min(j+1,ny-1),g=a=>(a[j*nx+i]*(1-u)+a[j*nx+i1]*u)*(1-v)+(a[j1*nx+i]*(1-u)+a[j1*nx+i1]*u)*v;
+  return[g(V.vx),g(V.vy)];
+}
+const lastRadar=()=>RV&&RV.frames.length?RV.frames[RV.frames.length-1]:null;
+function radarFrameAt(t){
+  if(!RV)return null;const F=RV.frames;if(t<F[0].time-300||t>F[F.length-1].time+300)return null;
+  let b=F[0];for(const f of F)if(Math.abs(f.time-t)<Math.abs(b.time-t))b=f;return b;
+}
+const frameReady=f=>f&&f.c&&MOS&&f.mk===MOS.key;
+/* what the map shows at time t */
+let forceModel=false;
+function sourceAt(t){
+  if(!S.radar||!RV||forceModel||!MOS)return{kind:'model'};
+  const f=radarFrameAt(t);if(f)return{kind:'radar',f};
+  const lf=lastRadar();if(frameReady(lf)&&RV.V&&RV.V.mk===MOS.key&&t>lf.time&&t<=lf.time+NC_MAX){const L=t-lf.time;return{kind:'nc',f:lf,L,w:clamp((L-NC_FADE0)/(NC_MAX-NC_FADE0),0,1)}}
+  return{kind:'model'};
+}
+/* ================= native model fields (Open-Meteo spatial files) ================= */
+const OMBASE='https://openmeteo.s3.amazonaws.com/data_spatial';
+const HRS={'15_minute':.25,hourly:1,'3_hourly':3,'6_hourly':6,'12_hourly':12,daily:24};
+let OMX=null,OMR=null,OMOK=0,OMERR=0;
+const META={};
+async function omMeta(d){
+  const c=META[d];if(c&&(c.p||Date.now()-c.at<15*60e3))return c.p||c;
+  const out={ok:false,at:Date.now(),d};META[d]=out;
+  out.p=(async()=>{
+    const dom=OMX.domainOptions.find(x=>x.value===d);if(!dom)return out;
+    try{
+      const j=await getJSON(`${OMBASE}/${d}/latest.json`,600);
+      const valid=j.valid_times.map(v=>Date.parse(v)/1000).sort((a,b)=>a-b);
+      const g=OMX.GridFactory.create(dom.grid),b=g.getBounds();
+      Object.assign(out,{dom,grid:g,bounds:b,ref:Date.parse(j.reference_time)/1000,valid,last:valid[valid.length-1],
+        step:HRS[dom.time_interval]||1,mstep:HRS[dom.model_interval]||6,hasP:(j.variables||[]).includes('precipitation')});
+      out.ok=out.hasP&&!!MOS&&overlaps(b,MOS.bbox);
+    }catch(e){console.warn('meta',d,e)}
+    delete out.p;return out;
+  })();
+  return out.p;
+}
+/* usable valid times of a domain: past hours come from earlier runs (their first hours), future from the latest run */
+function axisOf(m){
+  const key=S.past+'|'+m.ref;if(m.ax&&m.axk===key)return m.ax;
+  const st=m.step*3600,t0=Math.floor((nowS()-S.past*86400-3*3600)/st)*st,ts=[];
+  for(let t=t0;t<=m.ref;t+=st)ts.push(t);
+  for(const t of m.valid)if(t>m.ref)ts.push(t);
+  m.ax=ts.map((t,i)=>({t,dt:i?(t-ts[i-1])/3600:m.step}));m.axk=key;return m.ax;
+}
+const runFor=(m,t)=>t>m.ref?m.ref:Math.floor((t-3600)/(m.mstep*3600))*m.mstep*3600;
+const p2=n=>String(n).padStart(2,'0');
+function omUrl(d,run,t){const r=new Date(run*1000),v=new Date(t*1000);
+  return `${OMBASE}/${d}/${r.getUTCFullYear()}/${p2(r.getUTCMonth()+1)}/${p2(r.getUTCDate())}/${p2(r.getUTCHours())}${p2(r.getUTCMinutes())}Z/${v.getUTCFullYear()}-${p2(v.getUTCMonth()+1)}-${p2(v.getUTCDate())}T${p2(v.getUTCHours())}${p2(v.getUTCMinutes())}.om`}
+const FR=new Map(); // frame cache, keyed by domain|time (cleared when the visible area changes)
+let VER=0,active=0;const queue=[];
+function pump(){while(active<4&&queue.length){active++;const job=queue.shift();job().finally(()=>{active--;pump()})}}
+function frameGet(m,i,prio){
+  const it=m.ax[i],k=m.d+'|'+it.t+'|'+MOS.key;let f=FR.get(k);
+  if(!f){f={a:null,st:'q'};FR.set(k,f);const job=()=>frameLoad(f,m,it);prio?queue.unshift(job):queue.push(job);pump();
+    if(FR.size>220){let n=0;for(const[kk,ff]of FR){if(ff.st==='ok'||ff.st==='err'){FR.delete(kk);if(++n>50)break}}}}
+  return f;
+}
+async function frameLoad(f,m,it){
+  f.st='l';
+  try{
+    if(!m.sub||m.subk!==MOS.key){const pad=.3,B=MOS.bbox;m.ranges=m.grid.getCoveringRanges(B[1]-pad,B[0]-pad,B[3]+pad,B[2]+pad);m.sub=OMX.GridFactory.create(m.dom.grid,m.ranges);m.subk=MOS.key}
+  }catch(e){console.warn('ranges',m.d,e);f.st='err';OMERR++;return}
+  let run=runFor(m,it.t);const mk=MOS.key;
+  for(let k=0;k<3;k++){
+    try{
+      const data=await OMR.readVariable(omUrl(m.d,run,it.t),'precipitation',m.ranges,undefined,{deltaTimeHours:it.dt,domain:m.dom});
+      const v=data.values;if(!v)throw new Error('no values');
+      if(MOS.key!==mk)return;
+      const M=MOS,a=new Float32Array(M.mw*M.mh),La=M.lats,Lo=M.lons,b=m.bounds;
+      for(let j=0;j<M.mh;j++){const la=La[j];for(let i=0;i<M.mw;i++){const lo=Lo[i];
+        a[j*M.mw+i]=(la<b[1]||la>b[3]||lo<b[0]||lo>b[2])?NaN:m.sub.getLinearInterpolatedValue(v,la,lo)}}
+      f.a=a;f.st='ok';OMOK++;VER++;redraw();clearTimeout(frameLoad.t);frameLoad.t=setTimeout(()=>{renderNext();buildTimeline()},600);return;
+    }catch(e){if(k===0)console.warn('om read',m.d,new Date(it.t*1000).toISOString(),e&&e.message);if(it.t>m.ref)break;run-=m.mstep*3600}
+  }
+  f.st='err';OMERR++;VER++;
+  if(OMOK===0&&OMERR>=8&&OMX){console.warn('native model files not readable, falling back to the point grid');OMX=null;toast('Campi nativi dei modelli non leggibili: uso la griglia di punti');ensureModels(true)}
+}
+/* one model at time T on the mosaic: finest domain first, coarser ones fill the gaps */
+function modelRasterOne(mid,T,prio){
+  const doms=(MK[mid].om||[]).map(d=>META[d]).filter(m=>m&&m.ok);
+  if(!doms.length)return null;
+  let out=null,pending=false,covered=false;
+  for(const m of doms){
+    const ax=axisOf(m),c=k=>ax[k].t-ax[k].dt*1800;let i=-1;
+    for(let k=0;k<ax.length-1;k++)if(T>=c(k)&&T<c(k+1)){i=k;break}
+    if(i<0)continue;covered=true;
+    const f=(T-c(i))/(c(i+1)-c(i)),f0=frameGet(m,i,prio),f1=frameGet(m,i+1,prio);
+    if(!f0.a||!f1.a){if(f0.st!=='err'&&f1.st!=='err'){pending=true;break}continue}
+    if(!out)out=new Float32Array(MOS.mw*MOS.mh).fill(NaN);
+    const a0=f0.a,a1=f1.a;
+    for(let k=0;k<out.length;k++){if(out[k]===out[k])continue;let v=a0[k]*(1-f)+a1[k]*f;if(v!==v)v=f<.5?a0[k]:a1[k];if(v===v)out[k]=v}
+  }
+  return covered?{a:out,pending}:null;
+}
+const RAST=new Map();let LASTGOOD=null;
+function modelRaster(T,ms,how,prio){
+  if(!OMX)return gridRaster(T,ms,how);
+  const key=T+'|'+ms.join(',')+'|'+how+'|'+VER+'|'+MOS.key;let r=RAST.get(key);if(r)return r.a;
+  const parts=[];let pend=false;
+  for(const m of ms){const x=modelRasterOne(m,T,prio);if(!x)continue;if(x.pending)pend=true;if(x.a)parts.push(x.a)}
+  if(pend){busy('Carico '+ms.map(m=>MK[m].s).join(', ')+'…');if(LASTGOOD&&Math.abs(LASTGOOD.T-T)<=3*3600)return LASTGOOD.a}
+  if(!parts.length)return null;
+  const out=combine(parts,how);
+  RAST.set(key,{a:out});if(RAST.size>80)RAST.delete(RAST.keys().next().value);
+  if(!pend){LASTGOOD={T,a:out};busy(null)}
+  return out;
+}
+function combine(parts,how){
+  if(parts.length===1&&how!=='agree')return parts[0];
+  const N=parts[0].length,out=new Float32Array(N);
+  for(let k=0;k<N;k++){let s=0,n=0,mx=-1,wet=0;for(const a of parts){const v=a[k];if(v!==v)continue;n++;s+=v;if(v>mx)mx=v;wet+=clamp((v-0.1)/0.4,0,1)}
+    out[k]=!n?NaN:how==='agree'?wet/n:how==='max'?mx:s/n}
+  return out;
+}
+function prefetch(T){if(!OMX)return;const ms=wanted();for(let h=1;h<=4;h++)for(const m of ms)modelRasterOne(m,T+h*3600,false)}
+function horizonOf(mid){ // last time a model can show
+  if(!OMX){return GD&&GD.by[mid]?GD.by[mid].last-1800:null}
+  const ls=(MK[mid].om||[]).map(d=>META[d]).filter(m=>m&&m.ok).map(m=>m.last-1800);return ls.length?Math.max(...ls):null;
+}
+const modelOK=mid=>OMX?(MK[mid].om||[]).some(d=>META[d]&&META[d].ok):!!(GD&&GD.by[mid]);
+const modelFailed=mid=>OMX?(MK[mid].om||[]).every(d=>META[d]&&!META[d].p&&!META[d].ok):!!(GD&&GD.fail&&GD.fail[mid]);
+/* fallback: the Open-Meteo point grid resampled onto the mosaic */
+function gridRaster(T,ms,how){
+  const F=modelField(T,ms,how);if(!F||!MOS)return null;
+  const G=GD.G,M=G-1,mw=MOS.mw,mh=MOS.mh,out=new Float32Array(mw*mh).fill(NaN),gx=[],gy=[];
+  for(let i=0;i<mw;i++)gx.push(fracIdx(MOS.lons[i]-GD.clon,GD.dlo,G));for(let j=0;j<mh;j++)gy.push(fracIdx(MOS.lats[j]-GD.clat,GD.dla,G));
+  for(let j=0;j<mh;j++){const fy=gy[j];if(fy<0)continue;const jj=Math.min(Math.floor(fy),M-1),wy=crW(fy-jj);
+    for(let i=0;i<mw;i++){const fx=gx[i];if(fx<0)continue;const ii=Math.min(Math.floor(fx),M-1),wx=crW(fx-ii);let v=0;
+      for(let n=0;n<4;n++){const r=clamp(jj-1+n,0,M);let row=0;for(let m=0;m<4;m++)row+=F[r*G+clamp(ii-1+m,0,M)]*wx[m];v+=row*wy[n]}
+      out[j*mw+i]=Math.max(0,v)}}
+  return out;
+}
+
+/* ================= drawing ================= */
+let T=Math.round(nowS()/600)*600;
+const crW=t=>{const t2=t*t,t3=t2*t;return[(-t3+2*t2-t)/2,(3*t3-5*t2+2)/2,(-3*t3+4*t2+t)/2,(t3-t2)/2]};
+let rq=0;const redraw=()=>{if(!rq)rq=requestAnimationFrame(()=>{rq=0;draw()})};
+// bilinear sample of radar codes (512 grid) in mm/h
+function radarMM(R,mx,my){
+  const W=MOS.W,x=mx-.5,y=my-.5,i=Math.floor(x),j=Math.floor(y);if(i<0||j<0||i>=W-1||j>=MOS.H-1)return 0;
+  const u=x-i,v=y-j,k=j*W+i;
+  return (MM[R[k]]*(1-u)+MM[R[k+1]]*u)*(1-v)+(MM[R[k+W]]*(1-u)+MM[R[k+W+1]]*u)*v;
+}
+// bilinear sample of a model raster (MRES grid) given mosaic coords in 512 units
+function rasterVal(A,mx,my){
+  const mw=MOS.mw,x=mx*mw/MOS.W-.5,y=my*MOS.mh/MOS.H-.5,i=Math.floor(x),j=Math.floor(y);if(i<0||j<0||i>=mw-1||j>=MOS.mh-1)return NaN;
+  const u=x-i,v=y-j,k=j*mw+i,a=A[k],b=A[k+1],c=A[k+mw],d=A[k+mw+1];
+  if(a!==a||b!==b||c!==c||d!==d){const w=[[a,(1-u)*(1-v)],[b,u*(1-v)],[c,(1-u)*v],[d,u*v]].filter(p=>p[0]===p[0]);if(!w.length)return NaN;let s2=0,ww=0;for(const[q,wq]of w){s2+=q*wq;ww+=wq}return ww>.25?s2/ww:NaN}
+  return (a*(1-u)+b*u)*(1-v)+(c*(1-u)+d*u)*v;
+}
+function draw(){
+  const sz=map.getSize(),sc=2,cw=Math.ceil(sz.x/sc),ch=Math.ceil(sz.y/sc);
+  if(cvs.width!==cw||cvs.height!==ch){cvs.width=cw;cvs.height=ch}
+  cvs.style.width=sz.x+'px';cvs.style.height=sz.y+'px';cvs.style.opacity=S.opac/100;
+  L.DomUtil.setPosition(cvs,map.containerPointToLayerPoint([0,0]));
+  ctx.clearRect(0,0,cw,ch);if(!MOS)return;
+  const src=sourceAt(T),how=curHow(),ag=how==='agree';
+  const needModel=src.kind==='model'||(src.kind==='nc'&&src.w>0);
+  const A=needModel?modelRaster(T,wanted(),how,true):null;
+  const R=(src.kind==='radar'||src.kind==='nc')&&frameReady(src.f)?src.f.c:null;
+  if(!A&&!R)return;
+  const img=ctx.createImageData(cw,ch),d=img.data,o=MOS.x0*256,p=MOS.y0*256,z=MOS.z;
+  const MX=new Float32Array(cw),MY=new Float32Array(ch);
+  for(let x=0;x<cw;x++)MX[x]=merc(0,map.containerPointToLatLng([x*sc+sc/2,0]).lng,z)[0]-o;
+  for(let y=0;y<ch;y++)MY[y]=merc(map.containerPointToLatLng([0,y*sc+sc/2]).lat,0,z)[1]-p;
+  const Lmin=src.kind==='nc'?src.L/60:0,w=src.kind==='nc'?src.w:src.kind==='model'?1:0,L4=ag?LA:LR;
+  for(let y=0;y<ch;y++){const my0=MY[y];
+    for(let x=0;x<cw;x++){const mx0=MX[x];
+      let ra=0,rr=0,rg=0,rb=0,ma=0,mr=0,mg=0,mb=0;
+      if(R&&w<1){let mx=mx0,my=my0;if(Lmin){const v=velAt(mx,my);mx-=v[0]*Lmin;my-=v[1]*Lmin}
+        const li=idxR(radarMM(R,mx,my));if(li>=0){const q=li*4;rr=LR[q];rg=LR[q+1];rb=LR[q+2];ra=LR[q+3]}}
+      if(A&&w>0){const val=rasterVal(A,mx0,my0);if(val===val){const li=ag?idxA(val):idxR(val);if(li>=0){const q=li*4;mr=L4[q];mg=L4[q+1];mb=L4[q+2];ma=L4[q+3]}}}
+      const a=ra*(1-w)+ma*w;if(a<2)continue;
+      const q=(y*cw+x)*4,ta=a;
+      d[q]=(rr*ra*(1-w)+mr*ma*w)/ta;d[q+1]=(rg*ra*(1-w)+mg*ma*w)/ta;d[q+2]=(rb*ra*(1-w)+mb*ma*w)/ta;d[q+3]=a;
+    }}
+  ctx.putImageData(img,0,0);
+}
+map.on('move zoom resize viewreset',redraw);
+map.on('moveend',()=>{const c=map.getCenter();$('reload').style.display=km(c.lat,c.lng,S.lat,S.lon)>150?'block':'none'});
+
+/* value at the user's point (for the "next rain" sentence) */
+function pointValue(t){
+  if(!MOS)return{v:NaN,kind:'model'};
+  const src=sourceAt(t);let r=NaN,m=NaN;const[px,py]=mosXY(S.lat,S.lon);
+  const inside=px>=0&&py>=0&&px<MOS.W&&py<MOS.H;
+  if(!inside){ // the point is off screen: fall back to the point forecast of the chosen models
+    const ms=pms();if(!ms.length||!HT)return{v:NaN,kind:'model'};const i=HT.findIndex(x=>x-1800>=t);if(i<0)return{v:NaN,kind:'model'};
+    return{v:comb('hourly','precipitation',i,pHow(),ms)||0,kind:'model'}}
+  if((src.kind==='radar'||src.kind==='nc')&&frameReady(src.f)){let mx=px,my=py;
+    if(src.kind==='nc'){const v=velAt(mx,my);mx-=v[0]*src.L/60;my-=v[1]*src.L/60}
+    let best=0;for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++)best=Math.max(best,radarMM(src.f.c,mx+i,my+j));r=best}
+  if(src.kind!=='radar'){const A=modelRaster(t,wanted(),curHow()==='agree'?'mean':curHow());if(A)m=rasterVal(A,px,py)}
+  if(src.kind==='radar')return{v:r,kind:'radar'};
+  if(src.kind==='nc'){const w=src.w;return{v:isNaN(m)?r:r*(1-w)+m*w,kind:'nc'}}
+  return{v:m,kind:'model'};
+}
+
+/* ================= timeline ================= */
+const STEP=600;
+function tRange(){
+  let a=Infinity,b=-Infinity;const n0=nowS();
+  if(OMX){const hs=wanted().map(horizonOf).filter(x=>x!=null);a=Math.floor((n0-S.past*86400)/3600)*3600;b=Math.min(n0+S.fut*86400,hs.length?Math.max(...hs):n0+S.fut*86400)}
+  else if(GD&&GD.times){a=GD.times[0]-1800;b=GD.times[GD.times.length-1]-1800}
+  if(RV&&RV.frames.length){a=Math.min(a,RV.frames[0].time);b=Math.max(b,lastRadar().time+NC_MAX)}
+  if(!isFinite(a)){const n=nowS();a=n-7200;b=n+7200}
+  return[Math.floor(a/STEP)*STEP,Math.ceil(b/STEP)*STEP];
+}
+function buildTimeline(){
+  const[a,b]=tRange(),sl=$('slider');sl.min=a;sl.max=b;sl.step=STEP;
+  const pct=t=>clamp((t-a)/(b-a)*100,0,100).toFixed(2)+'%';
+  let h='';for(let t=Math.ceil(a/3600)*3600;t<b;t+=3600)if(hr(t)===0&&(t-a)/(b-a)<.92)h+=`<span style="left:${pct(t)}">${wd(t)}</span>`;
+  $('days').innerHTML=h;
+  const n=nowS();$('nowm').style.left=pct(n);$('pastz').style.width=pct(n);
+  const rz=$('radz'),nz=$('ncz');
+  if(S.radar&&RV&&RV.frames.length){const f0=RV.frames[0].time,lf=lastRadar().time;rz.style.display=nz.style.display='block';rz.style.left=pct(f0);rz.style.width=((lf-f0)/(b-a)*100)+'%';nz.style.left=pct(lf);nz.style.width=(NC_MAX/(b-a)*100)+'%'}
+  else rz.style.display=nz.style.display='none';
+  const hs=wanted().map(horizonOf).filter(x=>x!=null),hz=$('hz');
+  if(hs.length){const last=Math.min(...hs);if(last<b-3600){hz.style.display='block';hz.style.left=pct(last);hz.style.width=((b-last)/(b-a)*100)+'%'}else hz.style.display='none'}else hz.style.display='none';
+  $('legend').innerHTML=S.combine&&S.how==='agree'
+    ?'<span>1 modello</span><div class="bar" style="background:'+gradCss(LA)+'"></div><span>tutti</span>'
+    :'<span>0,1</span><div class="bar" style="background:'+gradCss(LR)+'"></div><span>60 mm/h</span>';
+}
+function srcName(){const ms=wanted();return S.combine?`${HOWS[S.how][0]} di ${ms.map(m=>MK[m].s).join(' + ')}`:MK[S.focus].n}
+function setT(t){
+  const[a,b]=tRange();T=clamp(Math.round(t/STEP)*STEP,a,b);$('slider').value=T;
+  const src=sourceAt(T),shown=src.kind==='radar'?src.f.time:T,n=nowS();
+  $('when').innerHTML=`<b>${wd(shown)} ${hm(shown)}</b><span>${rel(shown-n)}</span>`;
+  const el=$('src');
+  if(src.kind==='radar'){el.className='radar';el.innerHTML=`Radar reale<small>tocca: vedi il modello</small>`}
+  else if(src.kind==='nc'){el.className='nc';el.innerHTML=`Radar proiettato +${Math.round(src.L/60)}′<small>${src.w>0?'sfuma nel modello':'tocca: vedi il modello'}</small>`}
+  else{el.className=T<n-1800?'past':'';el.innerHTML=`${forceModel?'Modello':T<n-1800?'Passato':'Previsione'}<small>${srcName()}${forceModel?' · tocca: radar':''}</small>`}
+  draw();markHour();prefetch(T);
+}
+$('slider').addEventListener('input',e=>{stop();setT(+e.target.value)});
+$('nowb').onclick=()=>{stop();forceModel=false;setT(nowS())};
+$('src').onclick=()=>{const k=sourceAt(T).kind;if(k!=='model'||forceModel){forceModel=!forceModel;setT(T)}};
+let playing=null;
+function stop(){if(playing){clearInterval(playing);playing=null;$('pi').innerHTML='<path d="M7 4.5v15l13-7.5z"/>'}}
+$('play').onclick=()=>{
+  if(playing)return stop();const[a,b]=tRange();if(T>=b-STEP)setT(Math.max(a,nowS()-7200));
+  $('pi').innerHTML='<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>';
+  playing=setInterval(()=>{const[,b2]=tRange();if(T+STEP>b2){stop();return}setT(T+STEP)},170);
+};
+
+/* ================= source bar ================= */
+function buildBar(){
+  $('mSingle').className=S.combine?'':'on';$('mComb').className=S.combine?'on':'';
+  const ms=S.models;
+  $('mchips').innerHTML=ms.map(m=>{const on=S.combine?S.combo.includes(m):S.focus===m,fail=modelFailed(m);
+    return `<button class="chip ${on?'on':''}" data-m="${m}" style="${fail?'opacity:.45':''}">${S.combine?`<span class="ck">${on?'✓':''}</span>`:`<i style="background:${MK[m].c}"></i>`}${MK[m].s}</button>`}).join('');
+  $('howrow').style.display=S.combine?'flex':'none';
+  $('howchips').innerHTML=Object.entries(HOWS).map(([k,v])=>`<button class="chip ${S.how===k?'on':''}" data-h="${k}">${v[0]}</button>`).join('');
+  $('srcline').innerHTML=S.combine
+    ?`<b>${HOWS[S.how][0]}</b> (${HOWS[S.how][1]}) di <b>${wanted().map(m=>MK[m].s).join(' + ')||'nessuno'}</b>. Tocca i modelli per includerli o escluderli.`
+    :`Stai vedendo solo <b>${MK[S.focus].n}</b>. Tocca un altro modello per cambiarlo, o <b>Combina</b> per unirli.`;
+}
+function sourceChanged(){save();buildBar();forceModel=false;ensureModels().then(()=>renderPoint())}
+$('mSingle').onclick=()=>{if(!S.combine)return;S.combine=false;if(!S.models.includes(S.focus))S.focus=S.models[0];sourceChanged()};
+$('mComb').onclick=()=>{if(S.combine)return;S.combine=true;S.combo=S.combo.filter(m=>S.models.includes(m));if(S.combo.length<2)S.combo=S.models.slice(0,3);sourceChanged()};
+$('mchips').onclick=e=>{const b=e.target.closest('button');if(!b)return;const m=b.dataset.m;
+  if(S.combine){if(S.combo.includes(m)){if(S.combo.length<=2)return toast('Per combinare servono almeno 2 modelli');S.combo=S.combo.filter(x=>x!==m)}else S.combo.push(m)}
+  else S.focus=m;sourceChanged()};
+$('howchips').onclick=e=>{const b=e.target.closest('button');if(!b)return;S.how=b.dataset.h;save();buildBar();buildTimeline();setT(T);renderNext()};
+
+/* ================= point forecast (drawer) ================= */
+let PT={},HT=null;
+const HV='temperature_2m,apparent_temperature,precipitation,precipitation_probability,weather_code,wind_speed_10m,wind_gusts_10m,wind_direction_10m,cloud_cover,relative_humidity_2m,is_day,pressure_msl';
+const DV='weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,sunrise,sunset';
+async function loadPoint(){
+  const res=await Promise.allSettled(S.models.map(m=>omJSON(`https://api.open-meteo.com/v1/forecast?latitude=${S.lat.toFixed(4)}&longitude=${S.lon.toFixed(4)}&hourly=${HV}&daily=${DV}&models=${m}&forecast_days=10&past_days=1&timeformat=unixtime&timezone=auto`,1)));
+  PT={};res.forEach((r,i)=>{if(r.status==='fulfilled'&&r.value.hourly)PT[S.models[i]]=r.value});
+  const any=Object.values(PT)[0];if(any&&any.timezone)TZ=any.timezone;
+  renderPoint();
+}
+const pms=()=>wanted().filter(m=>PT[m]);
+function comb(sec,v,i,how='mean',ms=pms()){
+  const xs=ms.map(m=>PT[m][sec][v]&&PT[m][sec][v][i]).filter(x=>x!=null&&!isNaN(x));
+  if(!xs.length)return null;if(how==='max')return Math.max(...xs);if(how==='min')return Math.min(...xs);if(how==='first')return xs[0];
+  return xs.reduce((a,b)=>a+b,0)/xs.length;
+}
+const pHow=()=>S.combine&&S.how==='max'?'max':'mean';
+function codeFor(sec,i,ms=pms()){
+  const prim=ms.find(m=>PT[m][sec].weather_code[i]!=null);let c=prim?PT[prim][sec].weather_code[i]:null;if(c==null)return 3;
+  const p=comb(sec,sec==='hourly'?'precipitation':'precipitation_sum',i,pHow(),ms),tt=comb(sec,sec==='hourly'?'temperature_2m':'temperature_2m_min',i),k=sec==='hourly'?1:6;
+  if(p!=null&&p>=0.2*k&&c<50)c=tt!=null&&tt<0.5?71:p>4*k?65:p>1*k?63:61;
+  if(p!=null&&p<0.05*k&&c>=51&&c<95){const cc=sec==='hourly'?comb(sec,'cloud_cover',i):80;c=cc>85?3:2}
+  return c;
+}
+function probFor(sec,i,ms=pms()){
+  const v=sec==='hourly'?'precipitation_probability':'precipitation_probability_max',p=comb(sec,v,i,'mean',ms);
+  if(p!=null)return Math.round(p);if(ms.length<2)return null;
+  const pv=sec==='hourly'?'precipitation':'precipitation_sum',th=sec==='hourly'?0.2:1,xs=ms.map(m=>PT[m][sec][pv][i]).filter(x=>x!=null);
+  return xs.length?Math.round(xs.filter(x=>x>=th).length/xs.length*100):null;
+}
+function renderPoint(){
+  const ms=pms();if(!ms.length){$('nowbox').innerHTML='<div class="d"><b>Previsioni non disponibili</b><span>Controlla la connessione</span></div>';return}
+  const P0=PT[ms[0]],ht=P0.hourly.time;HT=ht;const n=nowS();
+  let ci=ht.findIndex(t=>t+3600>n);if(ci<0)ci=0;
+  const code=codeFor('hourly',ci),tc=comb('hourly','temperature_2m',ci),ta=comb('hourly','apparent_temperature',ci);
+  $('nowbox').innerHTML=`${wxIcon(code,P0.hourly.is_day[ci]!==0,52)}<div class="t">${tc==null?'–':Math.round(tc)}°</div><div class="d"><b>${S.place}</b><span>${WX[code]||''} · percepita ${ta==null?'–':Math.round(ta)}°</span><span style="display:block;font-size:11.5px">${srcName()}</span></div>`;
+  const ws=comb('hourly','wind_speed_10m',ci),wg=comb('hourly','wind_gusts_10m',ci,'max'),wdr=comb('hourly','wind_direction_10m',ci,'first'),rh=comb('hourly','relative_humidity_2m',ci),cc=comb('hourly','cloud_cover',ci),pr=comb('hourly','pressure_msl',ci);
+  const di=P0.daily.time.findIndex(t=>dayKey(t)===dayKey(n)),sr=di>=0?P0.daily.sunrise[di]:null,ss=di>=0?P0.daily.sunset[di]:null;
+  let s24=0;for(let i=ci;i<ci+24&&i<ht.length;i++)s24+=comb('hourly','precipitation',i,pHow())||0;
+  const u=x=>` <small style="display:inline">${x}</small>`;
+  $('stats').innerHTML=[['Vento',ws==null?'–':`<span style="display:inline-flex;align-items:center;gap:4px">${arrow(wdr||0,13)}${Math.round(ws)}</span>${u('km/h')}`],['Raffiche',wg==null?'–':Math.round(wg)+u('km/h')],['Umidità',rh==null?'–':Math.round(rh)+'%'],['Nuvole',cc==null?'–':Math.round(cc)+'%'],['Pressione',pr==null?'–':Math.round(pr)+u('hPa')],['Pioggia 24 h',dec(s24)+u('mm')],['Alba',sr?hm(sr):'–'],['Tramonto',ss?hm(ss):'–']].map(([k,v])=>`<div><small>${k}</small><b>${v}</b></div>`).join('');
+  renderForecast();
+  renderCompare(ci);renderNext();
+}
+/* ---------- forecast: hour by hour (per day) or day by day ---------- */
+let SD=null; // selected day key
+function hourCard(i,ci,ms,P0){
+  const t=HT[i],c=codeFor('hourly',i),p=probFor('hourly',i),mm=comb('hourly','precipitation',i,pHow()),mmx=comb('hourly','precipitation',i,'max'),mmn=comb('hourly','precipitation',i,'min');
+  const w=comb('hourly','wind_speed_10m',i),g=comb('hourly','wind_gusts_10m',i,'max'),dir=comb('hourly','wind_direction_10m',i,'first'),tt=comb('hourly','temperature_2m',i);
+  const spread=ms.length>1&&mmx>0.1&&mmx-mmn>0.3?`${dec(mmn)}–${dec(mmx)}`:mm>=0.05?dec(mm)+' mm':'';
+  return `<button class="h" data-t="${t}"><span class="hh">${i===ci?'Ora':hm(t).slice(0,2)}</span>${wxIcon(c,P0.hourly.is_day[i]!==0,32)}<span class="tt">${tt==null?'–':Math.round(tt)}°</span><span class="pp ${!p?'z':''}">${dropI}${p==null?'–':p+'%'}</span><span class="pbar"><i style="width:${p||0}%"></i></span><span class="mm">${spread}</span><span class="ww">${arrow(dir||0,11)}${w==null?'–':Math.round(w)}</span><span class="gg">${g==null?'':'raff. '+Math.round(g)}</span></button>`;
+}
+// hours (indices) of a day where it rains, grouped into spans like "14–19"
+function rainSpans(idx){
+  const out=[];let s0=null,prev=null;
+  for(const i of idx){const wet=(comb('hourly','precipitation',i,pHow())||0)>=0.2;
+    if(wet&&s0==null)s0=i;if(!wet&&s0!=null){out.push([s0,prev]);s0=null}prev=i}
+  if(s0!=null)out.push([s0,prev]);
+  return out.map(([a,b])=>{const h0=hr(HT[a]-3600),h1=hr(HT[b]);return a===b?`${h0}–${h1===0?24:h1}`:`${h0}–${h1===0?24:h1}`});
+}
+function dayIdx(dk){const out=[];for(let i=0;i<HT.length;i++)if(dayKey(HT[i])===dk)out.push(i);return out}
+function renderForecast(){
+  const ms=pms();if(!ms.length||!HT)return;const P0=PT[ms[0]],n=nowS(),today=dayKey(n);
+  let ci=HT.findIndex(t=>t+3600>n);if(ci<0)ci=0;
+  const fm=S.fmode||'h';$('fmH').className=fm==='h'?'on':'';$('fmD').className=fm==='d'?'on':'';
+  $('hourlyV').style.display=fm==='h'?'':'none';$('dailyV').style.display=fm==='d'?'':'none';
+  const dt=P0.daily.time,days=[];
+  for(let i=0;i<dt.length;i++){const k=dayKey(dt[i]);if(k<today)continue;const a=comb('daily','temperature_2m_min',i),b=comb('daily','temperature_2m_max',i);if(a==null||b==null)continue;days.push({i,k,t:dt[i],a,b})}
+  if(!SD||!days.some(d=>d.k===SD))SD=today;
+  // day chips
+  $('daychips').innerHTML=days.map(d=>{const ps=comb('daily','precipitation_sum',d.i,pHow())||0;
+    return `<button class="chip ${d.k===SD?'on':''}" data-k="${d.k}">${wd(d.t)}<small>${Math.round(d.b)}°/${Math.round(d.a)}°${ps>=1?' '+dropI:''}</small></button>`}).join('');
+  // hours of the selected day
+  let idx=dayIdx(SD);if(SD===today)idx=idx.filter(i=>i>=ci);
+  $('hours').innerHTML=idx.map(i=>hourCard(i,ci,ms,P0)).join('')||'<div class="daysum">Nessun dato orario per questo giorno.</div>';
+  const d=days.find(x=>x.k===SD);
+  if(d){const ps=comb('daily','precipitation_sum',d.i,pHow())||0,sp=rainSpans(dayIdx(SD)),wm=Math.max(0,...dayIdx(SD).map(i=>comb('hourly','wind_gusts_10m',i,'max')||0));
+    $('daysum').innerHTML=`<b>${wd(d.t)}</b> · ${Math.round(d.a)}–${Math.round(d.b)}° · ${ps>=0.1?`<b>${dec(ps)} mm</b>${sp.length?' (ore '+sp.join(', ')+')':''}`:'niente pioggia'} · raffiche fino a ${Math.round(wm)} km/h`}
+  markHour();
+  // day by day
+  let lo=99,hi=-99;days.forEach(x=>{lo=Math.min(lo,x.a);hi=Math.max(hi,x.b)});const span=hi-lo||1;
+  $('days7').innerHTML=days.map(x=>{const ps=comb('daily','precipitation_sum',x.i,pHow()),pp=probFor('daily',x.i),sp=rainSpans(dayIdx(x.k));
+    return `<button class="d" data-k="${x.k}"><span class="n">${wd(x.t)}</span>${wxIcon(codeFor('daily',x.i),1,30)}<span class="mn">${Math.round(x.a)}°</span><span class="rng"><i style="left:${(x.a-lo)/span*100}%;right:${100-(x.b-lo)/span*100}%"></i></span><span class="mx">${Math.round(x.b)}°</span><span class="rp">${pp==null?'':pp+'%'}<small>${ps>=0.1?dec(ps)+' mm':''}</small></span>${sp.length?`<span class="rw">Pioggia: ore ${sp.join(', ')}</span>`:''}</button>`}).join('');
+}
+$('fmH').onclick=()=>{S.fmode='h';save();renderForecast()};
+$('fmD').onclick=()=>{S.fmode='d';save();renderForecast()};
+$('daychips').onclick=e=>{const b=e.target.closest('[data-k]');if(!b)return;SD=b.dataset.k;renderForecast();$('hours').scrollLeft=0};
+$('days7').onclick=e=>{const b=e.target.closest('[data-k]');if(!b)return;SD=b.dataset.k;S.fmode='h';save();renderForecast();$('hours').scrollLeft=0;
+  const t=dayIdx(SD).map(i=>HT[i]).find(x=>x>nowS());if(t){stop();setT(t-1800+(SD===dayKey(nowS())?0:10*3600))}};
+function markHour(){document.querySelectorAll('.h.cur').forEach(e=>e.classList.remove('cur'));const hh=Math.floor((T+1800)/3600)*3600,e=document.querySelector(`.h[data-t="${hh}"]`);if(e)e.classList.add('cur')}
+$('hours').addEventListener('click',e=>{const b=e.target.closest('.h');if(!b)return;stop();setT(+b.dataset.t-1800);snap(0)});
+
+const chartSvg=$('chart').querySelector('svg');let chartData=null;
+function renderCompare(ci){
+  const ms=S.models.filter(m=>PT[m]);chartData={ms,ci,end:Math.min(ci+48,HT.length)};drawChart();
+  const th=x=>`<td class="r" style="color:var(--mute);font-size:12px">${x}</td>`;
+  $('mtab').innerHTML=`<tr><td style="color:var(--mute);font-size:12px">Modello</td>${th('Pioggia 24 h')}${th('Picco')}${th('Temp.')}</tr>`+ms.map(m=>{
+    const p=PT[m].hourly.precipitation;let s=0,mx=0,mt=null;for(let i=ci;i<ci+24&&i<HT.length;i++){const v=p[i]||0;s+=v;if(v>mx){mx=v;mt=HT[i]}}
+    const t=PT[m].hourly.temperature_2m[ci];
+    return `<tr><td><i style="background:${MK[m].c}"></i>${MK[m].n}</td><td class="r">${dec(s)} mm</td><td class="r">${mx>=0.1?dec(mx)+' · '+hm(mt-3600):'—'}</td><td class="r">${t==null?'–':Math.round(t)+'°'}</td></tr>`}).join('');
+}
+function drawChart(){
+  if(!chartData||!HT)return;const{ms,ci,end}=chartData,W=chartSvg.clientWidth,H=chartSvg.clientHeight;if(!W)return;
+  const pl=30,pb=22,pt=20,iw=W-pl-8,ih=H-pb-pt,n=end-ci;let mx=1;
+  ms.forEach(m=>{for(let i=ci;i<end;i++)mx=Math.max(mx,PT[m].hourly.precipitation[i]||0)});mx=Math.ceil(mx);
+  const X=i=>pl+(i-ci)/(n-1)*iw,Y=v=>pt+ih-v/mx*ih,act=wanted();
+  let s='';[0,mx/2,mx].forEach(v=>{s+=`<line x1="${pl}" x2="${W-8}" y1="${Y(v)}" y2="${Y(v)}" stroke="rgba(255,255,255,.08)"/><text x="${pl-6}" y="${Y(v)+4}" fill="#93a3b5" font-size="11" text-anchor="end">${String(+v.toFixed(1)).replace('.',',')}</text>`});
+  for(let i=ci;i<end;i++){const h=hr(HT[i]);if(h%6===0)s+=`<text x="${X(i)}" y="${H-6}" fill="#93a3b5" font-size="11" text-anchor="middle">${h===0?fmt(HT[i],{weekday:'short'}):h+':00'}</text><line x1="${X(i)}" x2="${X(i)}" y1="${pt}" y2="${pt+ih}" stroke="rgba(255,255,255,${h===0?.15:.05})"/>`}
+  ms.forEach(m=>{let p='';for(let i=ci;i<end;i++)p+=`${X(i)},${Y(PT[m].hourly.precipitation[i]||0)} `;const on=act.includes(m);s+=`<polyline points="${p}" fill="none" stroke="${MK[m].c}" stroke-width="${on?2.4:1.4}" stroke-linejoin="round" opacity="${on?1:.35}"/>`});
+  s+=`<text x="${pl}" y="11" fill="#93a3b5" font-size="11">mm/h · linee spesse = modelli in uso</text>`;
+  chartSvg.innerHTML=s;
+}
+new ResizeObserver(drawChart).observe($('chart'));
+
+/* ---------- next rain at the selected point ----------
+   first 3 hours: the map itself (radar, projected radar, model); after that: hourly forecast of the chosen models */
+const NEAR=3*3600,TH=0.2;
+function hourVal(t){if(!HT)return NaN;const i=HT.findIndex(x=>x>t);if(i<0)return NaN;return comb('hourly','precipitation',i,pHow())||0}
+const valAt=(t,n)=>t<n+NEAR?pointValue(t).v:hourVal(t);
+function findNextRain(){
+  const n=Math.round(nowS()/600)*600;if(!MOS&&!HT)return null;
+  let start=null,kind='model';const v0=pointValue(n);
+  if(v0.v>=TH){start=n;kind=v0.kind}
+  else{for(let t=n+600;t<n+NEAR;t+=600){const x=pointValue(t);if(x.v>=TH){start=t;kind=x.kind;break}}
+    if(start==null&&HT){for(let i=0;i<HT.length;i++){const t=HT[i]-3600;if(t<n+NEAR-3600)continue;if((comb('hourly','precipitation',i,pHow())||0)>=TH){start=Math.max(t,n+NEAR);kind='point';break}}}}
+  if(start==null)return{none:true,until:HT?HT[HT.length-1]:n+NEAR};
+  let end=start,total=0,peak=0,dry=0;
+  for(let t=start;t<start+72*3600;){const step=t<n+NEAR?600:3600,v=valAt(t,n);
+    if(!(v>=TH*.5)){dry+=step;if(dry>=3600)break}else{dry=0;end=t+step;total+=v*step/3600;peak=Math.max(peak,v)}t+=step}
+  const hi=HT?HT.findIndex(x=>x>start):-1,prob=hi>=0?probFor('hourly',hi):null;
+  return{start,end,total,peak,prob,kind,raining:start===n};
+}
+function whenText(s){const d=s-nowS();if(d<12*3600)return rel(d);return `${wd(s)} alle ${hm(s)}`}
+let NR=null;
+const umbrella='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 12a9 9 0 0 1 18 0z"/><path d="M12 12v7a2 2 0 0 0 4 0"/></svg>';
+const sunI='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/></svg>';
+const bellI='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>';
+function renderNext(){
+  const el=$('next');NR=findNextRain();if(!NR)return;
+  const src=k=>k==='radar'?'radar':k==='nc'?'radar proiettato':k==='point'?srcName():srcName();
+  const bell=`<button class="nb ${S.alert?'on':''}" id="nrBell" aria-label="Avvisami prima della pioggia" title="Avvisami 30 minuti prima">${bellI}</button>`;
+  let cls,title,big,sub,go='';
+  if(NR.none){cls='dry';title='Prossima pioggia';big='Nessuna in vista';sub=`fino a ${wd(NR.until)} · ${srcName()}`}
+  else{
+    const dur=Math.max(600,NR.end-NR.start),durT=dur>=3*3600?Math.round(dur/3600)+' h':rel(dur).replace('tra ','');
+    const det=[intens(NR.peak),NR.total>=0.1?`${dec(NR.total)} mm in ${durT}`:null,NR.prob!=null?NR.prob+'%':null].filter(Boolean).join(' · ');
+    if(NR.raining){cls='now';title='Sta piovendo';big=`fino alle ${hm(NR.end)} circa`;sub=`${det} · ${src(NR.kind)}`}
+    else{const d=NR.start-nowS();cls=d<2*3600?'soon':'later';title='Prossima pioggia';big=whenText(NR.start);sub=`${d<12*3600?wd(NR.start)+' '+hm(NR.start)+' · ':''}${det} · ${src(NR.kind)}`}
+    go=`<button class="nb" id="nrGo" title="Mostra sulla mappa">Vedi</button>`;
+  }
+  el.className=cls;
+  el.innerHTML=`<div class="ic">${cls==='dry'?sunI:umbrella}</div><div class="tx"><small>${title}</small><b>${big}</b><span>${sub}</span></div>${go}${bell}`;
+  document.title=(!NR.none&&!NR.raining&&NR.start-nowS()<3*3600?'☔ '+rel(NR.start-nowS())+' · ':'')+'Nembo';
+  checkAlert();
+}
+$('next').addEventListener('pointerdown',e=>{if(e.target.closest('.nb'))e.stopPropagation()});
+$('next').addEventListener('click',async e=>{
+  const b=e.target.closest('.nb');if(!b)return;e.stopPropagation();
+  if(b.id==='nrGo'&&NR&&!NR.none){stop();forceModel=false;setT(NR.raining?nowS():NR.start);snap(0);return}
+  if(b.id==='nrBell'){
+    S.alert=!S.alert;save();
+    if(S.alert&&'Notification' in window&&Notification.permission==='default'){try{await Notification.requestPermission()}catch(err){}}
+    toast(S.alert?'Ti avviso circa 30 minuti prima della pioggia, finché l\'app resta aperta o in background':'Avviso pioggia disattivato');renderNext();
+  }
+});
+let NOTIFIED=null;
+function checkAlert(){
+  if(!S.alert||!NR||NR.none||NR.raining)return;
+  const d=NR.start-nowS();if(d>35*60||d<-600)return;
+  const key=S.place+'|'+Math.round(NR.start/1800);if(NOTIFIED===key)return;NOTIFIED=key;
+  const msg=`Pioggia ${intens(NR.peak)} a ${S.place} ${rel(d)} (${hm(NR.start)})`;
+  let shown=false;
+  (async()=>{try{if(!('Notification' in window)||Notification.permission!=='granted')return;const reg=navigator.serviceWorker&&await navigator.serviceWorker.getRegistration();
+    if(reg)await reg.showNotification('☔ Pioggia in arrivo',{body:msg,tag:'nembo-rain',icon:'icon-192.png',badge:'icon-192.png'});else new Notification('☔ Pioggia in arrivo',{body:msg,tag:'nembo-rain'})}catch(e){}})();
+  toast('☔ '+msg,9000);try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){}
+}
+setInterval(()=>{if(NR)renderNext()},5*60*1000);
+
+/* ================= drawer ================= */
+const dr=$('drawer');let snaps=[],si=0,ty=0;
+function calcSnaps(){const H=dr.offsetHeight,pk=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--peek'))||168;snaps=[H-pk,Math.round(H*.45),0]}
+function snap(i,anim=true){calcSnaps();si=i;ty=snaps[i];dr.classList.toggle('anim',anim);dr.style.transform=`translateY(${ty}px)`;$('tl').classList.toggle('hide',i===2&&innerWidth<1000);$('dc').style.overflowY=i===2?'auto':'hidden'}
+let drag=null;
+$('grab').addEventListener('pointerdown',e=>{calcSnaps();drag={y:e.clientY,t0:ty,ts:performance.now(),moved:false};dr.classList.remove('anim');$('grab').setPointerCapture(e.pointerId)});
+$('grab').addEventListener('pointermove',e=>{if(!drag)return;const dy=e.clientY-drag.y;if(Math.abs(dy)>4)drag.moved=true;ty=clamp(drag.t0+dy,0,snaps[0]);dr.style.transform=`translateY(${ty}px)`});
+$('grab').addEventListener('pointerup',e=>{if(!drag)return;const dy=e.clientY-drag.y,v=dy/(performance.now()-drag.ts);
+  if(!drag.moved)snap(si===0?1:si===1?2:0);else if(Math.abs(v)>.5)snap(v<0?Math.min(2,si+1):Math.max(0,si-1));else{let b=0;snaps.forEach((s,i)=>{if(Math.abs(s-ty)<Math.abs(snaps[b]-ty))b=i});snap(b)}
+  drag=null});
+addEventListener('resize',()=>snap(si,false));
+
+/* ================= location / search ================= */
+async function setPoint(lat,lon,place){
+  S.lat=lat;S.lon=lon;S.place=place||S.place;save();me.setLatLng([lat,lon]);$('q').placeholder=S.place;$('q').value='';$('reload').style.display='none';
+  for(const k in META)delete META[k];setMosaic();await Promise.all([ensureModels(true),loadPoint(),loadRadar(true)]);
+}
+async function reverse(lat,lon){try{const j=await getJSON(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=it`,86400);return j.city||j.locality||null}catch(e){return null}}
+$('locate').onclick=()=>{
+  if(!navigator.geolocation)return toast('Geolocalizzazione non disponibile: cerca la località');
+  toast('Cerco la tua posizione…',2500);
+  navigator.geolocation.getCurrentPosition(async p=>{const{latitude:a,longitude:b}=p.coords;map.setView([a,b],7);setPoint(a,b,(await reverse(a,b))||'La mia posizione')},
+    ()=>toast('Posizione non concessa: usa la ricerca o tocca la mappa'),{timeout:10000,maximumAge:300000});
+};
+let qt;$('q').addEventListener('input',e=>{clearTimeout(qt);const v=e.target.value.trim();if(v.length<2){$('results').style.display='none';return}
+  qt=setTimeout(async()=>{try{const j=await getJSON(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(v)}&count=6&language=it&format=json`,86400),r=j.results||[];
+    $('results').innerHTML=r.length?r.map((x,i)=>`<button data-i="${i}">${x.name}<small>${[x.admin1,x.country].filter(Boolean).join(', ')}</small></button>`).join(''):'<button disabled>Nessun risultato</button>';
+    $('results').style.display='block';$('results').onclick=ev=>{const b=ev.target.closest('button[data-i]');if(!b)return;const x=r[+b.dataset.i];$('results').style.display='none';$('q').blur();map.setView([x.latitude,x.longitude],7);setPoint(x.latitude,x.longitude,x.name)}}catch(err){}},350)});
+$('q').addEventListener('blur',()=>setTimeout(()=>$('results').style.display='none',200));
+map.on('click',e=>{
+  const pop=L.popup({closeButton:false}).setLatLng(e.latlng).setContent(`<div>${e.latlng.lat.toFixed(3)}, ${e.latlng.lng.toFixed(3)}</div><button class="pbtn" id="here">Previsioni e pioggia qui</button>`).openOn(map);
+  setTimeout(()=>{const b=document.getElementById('here');if(b)b.onclick=async()=>{map.closePopup(pop);setPoint(e.latlng.lat,e.latlng.lng,(await reverse(e.latlng.lat,e.latlng.lng))||'Punto sulla mappa')}},0);
+});
+$('reload').onclick=()=>{const c=map.getCenter();reverse(c.lat,c.lng).then(nm=>setPoint(c.lat,c.lng,nm||'Centro mappa'))};
+
+/* ================= settings ================= */
+let D=null;
+const segs=(id,opts,key,lab)=>{$(id).innerHTML=opts.map(o=>`<button data-v="${o}" class="${D[key]===o?'on':''}">${lab(o)}</button>`).join('');$(id).onclick=e=>{const b=e.target.closest('button');if(!b)return;D[key]=+b.dataset.v;renderSet()}};
+function renderSet(){
+  $('mlist').innerHTML=MODELS.map(m=>`<label><input type="checkbox" data-m="${m.id}" ${D.models.includes(m.id)?'checked':''}><i style="background:${m.c}"></i><span class="mn"><b>${m.n}</b><small>${m.d}</small></span></label>`).join('');
+  $('mlist').onchange=e=>{const id=e.target.dataset.m;if(e.target.checked){D.models=MODELS.map(m=>m.id).filter(x=>x===id||D.models.includes(x))}else if(D.models.length>1)D.models=D.models.filter(x=>x!==id);else e.target.checked=true;renderSet()};
+  segs('pastSeg',[0,1,2,3,7],'past',v=>v?v+' g':'no');
+  segs('futSeg',[2,3,5,7],'fut',v=>v+' g');
+  segs('radSeg',[120,250,400],'radius',v=>v+' km');
+  segs('gridSeg',[13,15,17],'grid',v=>({13:'leggero',15:'medio',17:'fine'})[v]);
+  const pts=D.grid*D.grid,ax=axis(D.grid),c=(D.grid-1)/2,near=Math.round((ax[c+1]-ax[c])*D.radius),far=Math.round((ax[D.grid-1]-ax[D.grid-2])*D.radius);
+  $('cost').textContent=`Griglia più fitta vicino a te: un punto ogni ${near} km al centro, ${far} km ai bordi. Ogni modello costa ${pts} chiamate Open-Meteo (gratis: 600 al minuto, 10.000 al giorno). I dati restano in memoria 45 minuti.`;
+  $('radarSw').className='sw'+(D.radar?' on':'');$('lightSw').className='sw'+(D.light?' on':'');$('opac').value=D.opac;
+}
+$('radarSw').onclick=()=>{D.radar=!D.radar;renderSet()};$('lightSw').onclick=()=>{D.light=!D.light;renderSet()};$('opac').oninput=e=>D.opac=+e.target.value;
+const openSet=()=>{D=JSON.parse(JSON.stringify(S));renderSet();$('setbg').style.display=$('settings').style.display='block'};
+const closeSet=()=>{$('setbg').style.display=$('settings').style.display='none'};
+$('openset').onclick=openSet;$('closeset').onclick=closeSet;$('setbg').onclick=closeSet;
+$('applyset').onclick=()=>{
+  const lightCh=D.light!==S.light,radCh=D.radar!==S.radar,modelsCh=JSON.stringify(D.models)!==JSON.stringify(S.models);
+  if(!D.models.includes(D.focus))D.focus=D.models[0];D.combo=D.combo.filter(m=>D.models.includes(m));if(D.combo.length<2)D.combo=D.models.slice(0,3);if(D.models.length<2)D.combine=false;
+  S=D;save();closeSet();if(lightCh)setBase();
+  if(radCh)loadRadar(true).then(()=>{buildTimeline();setT(T)});
+  buildBar();for(const k in META)delete META[k].ax;ensureModels().then(()=>{if(modelsCh)loadPoint();else renderPoint()});
+};
+
+/* ================= boot ================= */
+if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(e=>console.warn('sw',e));
+$('q').placeholder=S.place;
+snap(innerWidth>=1000?2:0,false);buildBar();
+(async()=>{
+  try{OMX=await import('https://unpkg.com/@openmeteo/weather-map-layer@0.3.2/dist/index.mjs');OMR=OMX.getProtocolInstance(OMX.defaultOmProtocolSettings).omFileReader}catch(e){console.warn('om import',e);OMX=null}
+  $('areaSec').style.display=OMX?'none':'';
+  setMosaic();
+  await Promise.all([ensureModels(),loadPoint(),loadRadar()]);
+  setT(nowS());renderNext();
+  setInterval(()=>{if(document.visibilityState==='visible')loadRadar().then(()=>{buildTimeline();setT(T)})},5*60*1000);
+  setInterval(()=>{if(document.visibilityState==='visible'){for(const k in MEM)delete MEM[k];GD=null;for(const k in META)delete META[k];ensureModels();loadPoint()}},30*60*1000);
+})();
+window.__nembo={map,get V(){return RV&&RV.V},desiredMosaic,get GD(){return GD},get META(){return META},get FR(){return FR},get MOS(){return MOS},modelRaster,axisOf,omUrl,runFor,get RV(){return RV},modelField,sourceAt,pointValue,blockMotion,coarse,computeMotion,velAt,MM,merc,decodeFrame,setT,get T(){return T}};
+}
+</script>
+</body>
+</html>
