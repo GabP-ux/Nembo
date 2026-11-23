@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0f16">
+<title>Nembo · anteprima modalità zen</title>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#eef3f8;--mute:#9aa9ba}
+*{box-sizing:border-box;margin:0}
+body{background:#0b0f16;color:var(--ink);font:15px/1.45 Figtree,system-ui,sans-serif;padding:22px 14px 60px}
+h1{font-size:24px;font-weight:800;letter-spacing:-.01em}
+p.lead{color:var(--mute);margin:6px 0 16px;max-width:720px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.bar button{height:40px;padding:0 16px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:var(--ink);font:600 14px Figtree,sans-serif;cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;max-width:1100px}
+.tile{position:relative;aspect-ratio:9/16;border-radius:14px;overflow:hidden;cursor:pointer;background:#111}
+.tile .lab{position:absolute;top:14px;left:0;right:0;text-align:center;font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;text-shadow:0 1px 8px rgba(0,0,0,.6);z-index:3}
+.tile .when{position:absolute;bottom:10px;left:10px;right:10px;font-size:11px;color:#dfe7f1;opacity:.85;text-shadow:0 1px 6px rgba(0,0,0,.7);z-index:3}
+/* scene */
+.scene{position:absolute;inset:0;overflow:hidden}
+.scene img{position:absolute;inset:-4%;width:108%;height:108%;object-fit:cover;animation:kb 28s ease-in-out infinite alternate;will-change:transform}
+@keyframes kb{from{transform:scale(1) translate(0,0)}to{transform:scale(1.07) translate(-1.5%,-1%)}}
+.scene.wind img{animation:kb 28s ease-in-out infinite alternate,sway 2.6s ease-in-out infinite;transform-origin:50% 100%}
+@keyframes sway{0%,100%{rotate:0deg}50%{rotate:.7deg}}
+.scene canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.scene .flash{position:absolute;inset:0;background:#d9d2ff;opacity:0;mix-blend-mode:screen;pointer-events:none}
+.scene .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.25),transparent 25%,transparent 70%,rgba(0,0,0,.35));pointer-events:none}
+/* fullscreen viewer */
+#full{position:fixed;inset:0;z-index:10;display:none;background:#000}
+#full.on{display:block}
+#full .scene{transition:opacity 1.2s ease}
+#full .hud{position:absolute;left:0;right:0;top:calc(18px + env(safe-area-inset-top));text-align:center;z-index:5;text-shadow:0 2px 12px rgba(0,0,0,.6)}
+#full .hud b{display:block;font-size:13px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;opacity:.9}
+#full .hud span{display:block;font-size:56px;font-weight:300;letter-spacing:-.03em;line-height:1.1}
+#full .close{position:absolute;top:calc(14px + env(safe-area-inset-top));right:14px;z-index:6;width:42px;height:42px;border-radius:21px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.25);color:#fff;font-size:18px;backdrop-filter:blur(10px)}
+#full .tl{position:absolute;left:16px;right:16px;bottom:calc(22px + env(safe-area-inset-bottom));z-index:5;display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:22px;background:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,.06));border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(18px) saturate(150%);-webkit-backdrop-filter:blur(18px) saturate(150%)}
+#full .tl button{width:40px;height:40px;border-radius:20px;border:0;background:#fff;color:#0b0f16;display:grid;place-items:center;flex:none}
+#full .tl input{flex:1;accent-color:#fff}
+.notes{max-width:1100px;margin-top:22px;color:var(--mute);font-size:13.5px}
+.notes table{border-collapse:collapse;width:100%;margin-top:8px}
+.notes td{padding:7px 8px;border-bottom:1px solid rgba(255,255,255,.08);vertical-align:top}
+.notes td:first-child{color:var(--ink);font-weight:600;white-space:nowrap}
+</style>
+</head>
+<body>
+<h1>Modalità zen · stati del tempo</h1>
+<p class="lead">12 stati, ognuno con la sua animazione (in codice, gira in loop). Tocca un riquadro per vederlo a tutto schermo; "Prova sequenza" mostra come scorre il play, con dissolvenza da uno stato all'altro.</p>
+<div class="bar"><button id="seq">▶ Prova sequenza</button></div>
+<div class="grid" id="grid"></div>
+<div class="notes"><b style="color:var(--ink)">Quando si usa ogni stato</b> (dal codice meteo del modello nel tuo punto, ora per ora)
+<table id="map"></table></div>
+
+<div id="full"><button class="close" id="close" aria-label="Chiudi">✕</button><div class="hud"><b id="hl"></b><span id="ht">12°</span></div>
+<div class="tl"><button id="fp" aria-label="Play"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg></button><input id="fr" type="range" min="0" max="11" step="1" value="0" aria-label="Scorri"></div></div>
+
+<script>
+{
+const CDN='https://d8j0ntlcm91z4.cloudfront.net/user_3LxLr9juzRWAWAhHofdcu3dm4XH/';
+const ST=[
+ {k:'sun',n:'Soleggiato',img:'hf_20261123_144400_4a5e84dc-b78d-4c41-895b-ef2eeab76fc2.png',fx:'sun',w:'Sereno o quasi sereno, di giorno (codici 0–1)',t:'21°'},
+ {k:'partly',n:'Poco nuvoloso',img:'hf_20261123_144512_f1393645-0888-43c8-90f4-aab508df8ecd.png',fx:'partly',w:'Parzialmente nuvoloso di giorno (codice 2)',t:'18°'},
+ {k:'cloudy',n:'Nuvoloso',img:'hf_20261123_144512_0135e822-a96b-4d17-b0c8-b6b970460329.png',fx:'cloudy',w:'Coperto con nuvole chiare (codice 3, copertura < 90%)',t:'15°'},
+ {k:'overcast',n:'Molto nuvoloso',img:'hf_20261123_144510_fa6e013f-94d2-4501-8544-1211a89b9989.png',fx:'overcast',w:'Coperto pieno (codice 3, copertura ≥ 90%) o pioviggine leggerissima',t:'13°'},
+ {k:'fog',n:'Nebbia',img:'hf_20261123_144510_64b31a36-f8ee-486e-a17e-8f7dfbc4f99e.png',fx:'fog',w:'Nebbia (codici 45, 48)',t:'6°'},
+ {k:'rain',n:'Pioggia',img:'hf_20261123_144509_efea848a-ebe8-4604-a7ff-18831796595d.png',fx:'rain',w:'Pioviggine e pioggia, anche rovesci (51–67, 80–82)',t:'11°'},
+ {k:'storm',n:'Temporale',img:'hf_20261123_144544_e92c4815-3058-40e7-9ba9-6ebbb6a09107.png',fx:'storm',w:'Temporale, anche con grandine (95–99)',t:'17°'},
+ {k:'snow',n:'Neve',img:'hf_20261123_144511_3b46f195-436b-450b-bf93-d892d6e97969.png',fx:'snow',w:'Neve e rovesci di neve (71–77, 85–86)',t:'-1°'},
+ {k:'wind',n:'Vento forte',img:'hf_20261123_144509_66387959-5796-43f7-a29e-49d13f4ea7d7.png',fx:'wind',w:'Raffiche oltre 50 km/h senza pioggia (ha la precedenza su sole e nuvole)',t:'14°'},
+ {k:'rainbow',n:'Arcobaleno dopo la pioggia',img:'hf_20261123_144511_4cdd1afd-7241-48e3-8aa2-928bdeb8cca9.png',fx:'rainbow',w:'Di giorno, la prima ora asciutta con sole dopo almeno un\'ora di pioggia',t:'16°'},
+ {k:'night',n:'Notte serena',img:'hf_20261123_144510_cb3203a9-6de7-4fa7-9512-7eab5487b8ff.png',fx:'night',w:'Sereno o poco nuvoloso di notte (0–2)',t:'4°'},
+ {k:'nightcloud',n:'Notte nuvolosa',img:'hf_20261123_144510_d95b810f-5f36-46ed-92e7-61e7f966f581.png',fx:'nightcloud',w:'Nuvoloso di notte (3); con pioggia, neve o temporale vale lo stato di pioggia',t:'5°'},
+];
+const rnd=(a,b)=>a+Math.random()*(b-a);
+
+/* ---------- animated layers drawn on a canvas over the photo ---------- */
+function makeFX(kind,cv,flash){
+  const g=cv.getContext('2d');let W=0,H=0,P=[],t0=performance.now(),nextFlash=performance.now()+rnd(1500,4000),dpr=Math.min(2,devicePixelRatio||1);
+  const size=()=>{const r=cv.getBoundingClientRect();W=r.width;H=r.height;cv.width=W*dpr;cv.height=H*dpr;g.setTransform(dpr,0,0,dpr,0,0);init()};
+  function init(){
+    P=[];const A=W*H/1e4;
+    if(kind==='snow')for(let i=0;i<A*3;i++)P.push({x:rnd(0,W),y:rnd(0,H),z:rnd(.3,1),s:rnd(0,6.28)});
+    if(kind==='rain'){for(let i=0;i<A*2.2;i++)P.push({x:rnd(0,W),y:rnd(0,H),r:rnd(.6,2.6),v:0,run:Math.random()<.12,trail:[]})}
+    if(kind==='storm'||kind==='overcast'&&false)for(let i=0;i<A*3.5;i++)P.push({x:rnd(0,W),y:rnd(0,H),l:rnd(10,26),v:rnd(14,22)});
+    if(kind==='sun'||kind==='partly'||kind==='rainbow')for(let i=0;i<A*(kind==='sun'?.5:.25);i++)P.push({x:rnd(0,W),y:rnd(0,H),r:rnd(1,3.5),v:rnd(.05,.25),a:rnd(.1,.5),p:rnd(0,6.28)});
+    if(kind==='night')for(let i=0;i<A*3;i++)P.push({x:rnd(0,W),y:rnd(0,H*.75),r:rnd(.3,1.3),p:rnd(0,6.28),f:rnd(.5,2.5)});
+    if(kind==='fog'||kind==='cloudy'||kind==='overcast'||kind==='nightcloud'||kind==='partly')for(let i=0;i<(kind==='fog'?9:5);i++)P.push({x:rnd(-W*.3,W),y:rnd(kind==='fog'?H*.35:0,kind==='fog'?H:H*.6),rx:rnd(W*.4,W*.9),ry:rnd(H*.06,H*.14),v:rnd(.04,.16)*(kind==='fog'?1:1.3),a:rnd(.08,.2)});
+    if(kind==='wind'){for(let i=0;i<A*.8;i++)P.push({x:rnd(-W,W),y:rnd(0,H),l:rnd(30,110),v:rnd(6,14),a:rnd(.05,.18),leaf:false});for(let i=0;i<A*.25;i++)P.push({x:rnd(-W,W),y:rnd(0,H),v:rnd(3,7),r:rnd(2.5,5),rot:rnd(0,6.28),vr:rnd(-.2,.2),p:rnd(0,6.28),leaf:true})}
+    if(kind==='rainbow')for(let i=0;i<A*.9;i++)P.push({x:rnd(0,W),y:rnd(H*.62,H),r:rnd(.6,1.8),p:rnd(0,6.28),f:rnd(1,3),spark:true});
+  }
+  function blob(x,y,rx,ry,a,col){const gr=g.createRadialGradient(x,y,0,x,y,rx);gr.addColorStop(0,`rgba(${col},${a})`);gr.addColorStop(1,`rgba(${col},0)`);g.save();g.translate(x,y);g.scale(1,ry/rx);g.translate(-x,-y);g.fillStyle=gr;g.beginPath();g.arc(x,y,rx,0,6.29);g.fill();g.restore()}
+  function frame(now){
+    const t=(now-t0)/1000;g.clearRect(0,0,W,H);
+    if(kind==='sun'){ // breathing flare + slow rays + rising bokeh
+      const cx=W*.55,cy=H*.33,pul=.75+.25*Math.sin(t*1.3);
+      blob(cx,cy,W*.55,W*.55,.22*pul,'255,214,140');blob(cx,cy,W*.16,W*.16,.55*pul,'255,245,220');
+      g.save();g.translate(cx,cy);g.rotate(t*.04);g.globalCompositeOperation='lighter';
+      for(let i=0;i<10;i++){g.rotate(Math.PI/5);const gr=g.createLinearGradient(0,0,W,0);gr.addColorStop(0,`rgba(255,220,160,${.07*pul})`);gr.addColorStop(1,'rgba(255,220,160,0)');g.fillStyle=gr;g.beginPath();g.moveTo(0,0);g.lineTo(W*1.2,-W*.05);g.lineTo(W*1.2,W*.05);g.fill()}
+      g.restore();
+    }
+    if(kind==='sun'||kind==='partly'||kind==='rainbow'){g.globalCompositeOperation='lighter';for(const p of P){if(p.spark)continue;p.y-=p.v;p.x+=Math.sin(t*.5+p.p)*.15;if(p.y<-5){p.y=H+5;p.x=rnd(0,W)}g.fillStyle=`rgba(255,230,180,${p.a*(.6+.4*Math.sin(t*2+p.p))})`;g.beginPath();g.arc(p.x,p.y,p.r,0,6.29);g.fill()}g.globalCompositeOperation='source-over'}
+    if(kind==='partly'){const x=((t*18)%(W*2))-W*.5;blob(x,H*.45,W*.8,H*.5,.16,'0,0,0')} // passing cloud shadow
+    if(['fog','cloudy','overcast','nightcloud','partly'].includes(kind)){
+      const col=kind==='overcast'?'60,66,76':kind==='nightcloud'?'40,50,70':'235,240,245';
+      for(const p of P){p.x+=p.v;if(p.x-p.rx>W)p.x=-p.rx;blob(p.x,p.y,p.rx,p.ry,p.a*(kind==='fog'?1.6:1),col)}
+    }
+    if(kind==='nightcloud'){blob(W*.5,H*.3,W*.4,W*.4,.12+.04*Math.sin(t*.7),'220,230,255')}
+    if(kind==='overcast'){g.fillStyle=`rgba(0,0,0,${.06+.05*Math.sin(t*.35)})`;g.fillRect(0,0,W,H)}
+    if(kind==='night'){for(const p of P){const a=.35+.65*Math.max(0,Math.sin(t*p.f+p.p));g.fillStyle=`rgba(255,255,255,${a})`;g.beginPath();g.arc(p.x,p.y,p.r,0,6.29);g.fill()}
+      const ph=(t%9)/9;if(ph<.12){const k=ph/.12,x=W*(.15+.6*k),y=H*(.08+.14*k);const gr=g.createLinearGradient(x,y,x-60,y-22);gr.addColorStop(0,`rgba(255,255,255,${.8*(1-k)})`);gr.addColorStop(1,'rgba(255,255,255,0)');g.strokeStyle=gr;g.lineWidth=1.5;g.beginPath();g.moveTo(x,y);g.lineTo(x-60,y-22);g.stroke()}}
+    if(kind==='snow'){for(const p of P){p.y+=(.4+p.z*1.3);p.x+=Math.sin(t*.8+p.s)*.4*p.z;if(p.y>H+4){p.y=-4;p.x=rnd(0,W)}g.fillStyle=`rgba(255,255,255,${.35+.55*p.z})`;g.beginPath();g.arc(p.x,p.y,.8+p.z*2.2,0,6.29);g.fill()}}
+    if(kind==='rain'){ // drops on glass: static ones, and some that slide down leaving a wet trail
+      for(const p of P){
+        if(p.run){p.v=Math.min(p.v+.04,2.4+p.r*.4);if(Math.random()<.02)p.v*=.2;p.y+=p.v;p.x+=Math.sin(p.y*.05)*.2;p.trail.push([p.x,p.y]);if(p.trail.length>40)p.trail.shift();
+          if(p.y>H+10){p.y=rnd(-40,H*.3);p.x=rnd(0,W);p.trail=[];p.v=0}
+          g.strokeStyle='rgba(210,225,240,.18)';g.lineWidth=p.r*.9;g.beginPath();p.trail.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.stroke()}
+        else if(Math.random()<.0015){p.run=true;p.trail=[]}
+        const r=p.r*(p.run?1.3:1);const gr=g.createRadialGradient(p.x-r*.3,p.y-r*.3,0,p.x,p.y,r);gr.addColorStop(0,'rgba(255,255,255,.55)');gr.addColorStop(.6,'rgba(190,210,230,.18)');gr.addColorStop(1,'rgba(20,30,45,.35)');g.fillStyle=gr;g.beginPath();g.ellipse(p.x,p.y,r,r*1.15,0,0,6.29);g.fill();
+      }
+      if(Math.random()<.04){const q=P[(Math.random()*P.length)|0];if(q&&!q.run){q.x=rnd(0,W);q.y=rnd(0,H)}}
+    }
+    if(kind==='storm'){g.strokeStyle='rgba(200,200,255,.28)';g.lineWidth=1;g.beginPath();for(const p of P){p.y+=p.v;p.x-=p.v*.18;if(p.y>H){p.y=-p.l;p.x=rnd(0,W*1.2)}g.moveTo(p.x,p.y);g.lineTo(p.x+p.l*.18,p.y-p.l)}g.stroke();
+      if(now>nextFlash){nextFlash=now+rnd(3500,9000);const f=flash;f.animate([{opacity:0},{opacity:.75,offset:.06},{opacity:.1,offset:.18},{opacity:.55,offset:.26},{opacity:0}],{duration:900,easing:'ease-out'})}}
+    if(kind==='wind'){for(const p of P){p.x+=p.v;if(p.leaf){p.y+=Math.sin(t*3+p.p)*1.2+.3;p.rot+=p.vr}if(p.x>W+120){p.x=rnd(-W*.6,-40);p.y=rnd(0,H)}
+        if(p.leaf){g.save();g.translate(p.x,p.y);g.rotate(p.rot+Math.sin(t*6+p.p));g.fillStyle='rgba(70,90,40,.85)';g.beginPath();g.ellipse(0,0,p.r*1.6,p.r*.7,0,0,6.29);g.fill();g.restore()}
+        else{const gr=g.createLinearGradient(p.x,p.y,p.x-p.l,p.y);gr.addColorStop(0,`rgba(255,255,255,${p.a})`);gr.addColorStop(1,'rgba(255,255,255,0)');g.strokeStyle=gr;g.lineWidth=1;g.beginPath();g.moveTo(p.x,p.y);g.lineTo(p.x-p.l,p.y+p.l*.04);g.stroke()}}}
+    if(kind==='rainbow'){for(const p of P){if(!p.spark)continue;const a=Math.max(0,Math.sin(t*p.f+p.p))**6;g.fillStyle=`rgba(255,245,210,${a})`;g.beginPath();g.arc(p.x,p.y,p.r,0,6.29);g.fill()}
+      g.globalCompositeOperation='overlay';g.fillStyle=`rgba(255,240,200,${.05+.05*Math.sin(t*.6)})`;g.fillRect(0,0,W,H);g.globalCompositeOperation='source-over'}
+    raf=requestAnimationFrame(frame);
+  }
+  let raf=0;const ro=new ResizeObserver(size);ro.observe(cv);size();raf=requestAnimationFrame(frame);
+  return{stop(){cancelAnimationFrame(raf);ro.disconnect()}};
+}
+function scene(st){
+  const d=document.createElement('div');d.className='scene '+st.fx;
+  d.innerHTML=`<img src="${CDN+st.img}" alt="" decoding="async"><canvas></canvas><div class="flash"></div><div class="shade"></div>`;
+  return d;
+}
+/* ---------- grid of tiles ---------- */
+const grid=document.getElementById('grid');const live=[];
+ST.forEach((st,i)=>{const t=document.createElement('div');t.className='tile';const s=scene(st);t.append(s);
+  t.insertAdjacentHTML('beforeend',`<div class="lab">${st.n}</div>`);grid.append(t);
+  t.onclick=()=>openFull(i);
+  // start animations only when visible
+  new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting&&!s.fx)s.fx=makeFX(st.fx,s.querySelector('canvas'),s.querySelector('.flash'));else if(!e.isIntersecting&&s.fx){s.fx.stop();s.fx=null}})).observe(t);
+});
+document.getElementById('map').innerHTML=ST.map(s=>`<tr><td>${s.n}</td><td>${s.w}</td></tr>`).join('');
+
+/* ---------- fullscreen with simplified timeline ---------- */
+const full=document.getElementById('full');let cur=null,curI=0,timer=null;
+function show(i){
+  curI=i;const st=ST[i],s=scene(st);s.style.opacity=0;full.prepend(s);
+  s.fx=makeFX(st.fx,s.querySelector('canvas'),s.querySelector('.flash'));
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{s.style.opacity=1}));
+  const old=cur;cur=s;if(old)setTimeout(()=>{old.fx&&old.fx.stop();old.remove()},1300);
+  document.getElementById('hl').textContent=st.n;document.getElementById('ht').textContent=st.t;document.getElementById('fr').value=i;
+}
+function openFull(i){full.classList.add('on');show(i)}
+function stopSeq(){clearInterval(timer);timer=null;document.getElementById('fp').innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>'}
+function play(){if(timer)return stopSeq();document.getElementById('fp').innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>';timer=setInterval(()=>show((curI+1)%ST.length),3200)}
+document.getElementById('fp').onclick=play;
+document.getElementById('fr').oninput=e=>{stopSeq();show(+e.target.value)};
+document.getElementById('close').onclick=()=>{stopSeq();full.classList.remove('on');if(cur){cur.fx&&cur.fx.stop();cur.remove();cur=null}};
+document.getElementById('seq').onclick=()=>{openFull(0);play()};
+}
+</script>
+</body>
+</html>
