@@ -246,7 +246,10 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-of
 #zen .scene{transition:opacity 1.6s ease,transform 1.6s ease,filter 1.6s ease}
 #zen .scene.in{opacity:0;transform:scale(1.035);filter:blur(6px) saturate(1.2)}
 #zen .scene.out{opacity:0;transform:scale(1.06);filter:blur(10px)}
-#zen .zhud{position:absolute;left:0;right:0;top:calc(22px + var(--safe-t));text-align:center;z-index:5;text-shadow:0 2px 14px rgba(0,0,0,.55);pointer-events:none}
+#zstage{position:absolute;inset:-5%;will-change:transform}
+#zen .zhud{position:absolute;left:0;right:0;top:46%;transform:translateY(-50%);text-align:center;z-index:5;text-shadow:0 2px 16px rgba(0,0,0,.55);pointer-events:none}
+#zicon{display:flex;justify-content:center;margin-bottom:4px;filter:drop-shadow(0 4px 14px rgba(0,0,0,.35))}
+#zicon svg{width:84px;height:84px}
 #zen .zhud small{display:block;font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;opacity:.9}
 #zen .zhud b{display:block;font-size:72px;font-weight:300;letter-spacing:-.04em;line-height:1.05}
 #zen .zhud span{display:block;font-size:14px;opacity:.9;margin-top:2px}
@@ -254,7 +257,11 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-of
 #zclose{position:absolute;top:calc(14px + var(--safe-t));right:14px;z-index:6;width:42px;height:42px;border-radius:21px;color:#fff;font-size:17px}
 #zbar{position:absolute;left:16px;right:16px;bottom:calc(22px + var(--safe-b));z-index:6;display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:24px;max-width:620px;margin:0 auto}
 #zplay{width:42px;height:42px;border-radius:21px;background:#fff;color:#0b0f16;display:grid;place-items:center;flex:none}
-#zrange{flex:1;height:30px;background:transparent;-webkit-appearance:none;appearance:none}
+.ztrack{flex:1;position:relative;padding-top:18px}
+.zdays{position:absolute;left:0;right:0;top:0;height:40px;pointer-events:none}
+.zdays span{position:absolute;top:0;font-size:11px;font-weight:600;color:rgba(255,255,255,.9);padding-left:4px;white-space:nowrap;text-shadow:0 1px 6px rgba(0,0,0,.5);line-height:14px}
+.zdays i{position:absolute;top:22px;width:1px;height:6px;background:rgba(255,255,255,.35)}
+#zrange{width:100%;display:block;height:30px;background:transparent;-webkit-appearance:none;appearance:none;position:relative}
 #zrange::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:rgba(255,255,255,.35)}
 #zrange::-moz-range-track{height:4px;border-radius:2px;background:rgba(255,255,255,.35)}
 #zrange::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;margin-top:-8px;border-radius:10px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.4)}
@@ -280,7 +287,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-of
       <div id="results" class="glass"></div>
     </div>
     <button class="ibtn glass" id="locate" aria-label="Usa la mia posizione"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
-    <button class="ibtn glass" id="openzen" aria-label="Modalità zen"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20c-4-1.5-7-4.6-7-9 3.2 0 5.6 1.3 7 3.4C13.4 12.3 15.8 11 19 11c0 4.4-3 7.5-7 9z"/><path d="M12 14.4C11 11 11.4 7.3 12 4c.6 3.3 1 7 0 10.4"/></svg></button>
+    <button class="ibtn glass" id="openzen" aria-label="Modalità zen"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 18c-2.2-1.6-3.4-4-3.4-6.6 0-2.3 1.3-4.6 3.4-6.4 2.1 1.8 3.4 4.1 3.4 6.4 0 2.6-1.2 5-3.4 6.6z"/><path d="M8.7 10.2C6.8 9.6 4.6 9.7 2.8 10.6c.4 3.9 3.8 7.2 9.2 7.4"/><path d="M15.3 10.2c1.9-.6 4.1-.5 5.9.4-.4 3.9-3.8 7.2-9.2 7.4"/><path d="M5 20.5h14"/></svg></button>
     <button class="ibtn glass" id="openset" aria-label="Impostazioni"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.3"/><circle cx="10" cy="17" r="2.3"/></svg></button>
   </div>
   <button id="srcpill" aria-haspopup="true" aria-expanded="false"><span id="srcpillT">–</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg></button>
@@ -349,9 +356,10 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-of
 </div>
 
 <div id="zen" role="dialog" aria-label="Modalità zen">
-  <div class="zhud"><small id="zlab">–</small><b id="ztemp">–</b><span id="zwhen">–</span></div>
+  <div id="zstage"></div>
+  <div class="zhud"><div id="zicon"></div><small id="zlab">–</small><b id="ztemp">–</b><span id="zwhen">–</span></div>
   <button class="glass" id="zclose" aria-label="Chiudi modalità zen">✕</button>
-  <div id="zbar" class="glass"><button id="zplay" aria-label="Riproduci"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg></button><input id="zrange" type="range" min="0" max="1" step="1" value="0" aria-label="Scorri le ore"></div>
+  <div id="zbar" class="glass"><button id="zplay" aria-label="Riproduci"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg></button><div class="ztrack"><div class="zdays" id="zdays"></div><input id="zrange" type="range" min="0" max="1" step="1" value="0" aria-label="Scorri le ore"></div></div>
 </div>
 <div id="setbg"></div>
 <div id="settings" role="dialog" aria-label="Impostazioni">
@@ -1397,7 +1405,7 @@ function zScene(st){
   return d;
 }
 function zShow(k,instant){
-  if(k===zKey)return;zKey=k;const st=ZK[k],s=zScene(st),old=zCur;zen.prepend(s);
+  if(k===zKey)return;zKey=k;const st=ZK[k],s=zScene(st),old=zCur;$('zstage').append(s);
   const go=()=>{s.fx=makeFX(st.fx,s.querySelector('canvas'),s.querySelector('.flash'));
     requestAnimationFrame(()=>requestAnimationFrame(()=>{s.classList.remove('in');if(old){old.classList.add('out');setTimeout(()=>{old.fx&&old.fx.stop();old.remove()},1700)}}))};
   // wait for the photo (max 2.5 s) so the cross-fade never shows an empty frame
@@ -1409,6 +1417,7 @@ function zShow(k,instant){
 function zSet(j,instant){
   zIdx=clamp(j,0,ZI.length-1);$('zrange').value=zIdx;const i=ZI[zIdx],t=HT[i]-3600,tt=comb('hourly','temperature_2m',i);
   $('ztemp').textContent=tt==null?'–':Math.round(tt)+'°';
+  $('zicon').innerHTML=wxIcon(codeFor('hourly',i),PT[pms()[0]].hourly.is_day[i]!==0,84);
   $('zwhen').textContent=`${S.place} · ${zIdx===0?'adesso':wd(t)+' '+hm(t)}`;
   zShow(zenState(i),instant);
 }
@@ -1422,10 +1431,35 @@ function openZen(){
   const ms=pms();if(!ms.length||!HT)return toast('Previsioni non ancora caricate');
   const n=nowS();let ci=HT.findIndex(t=>t+3600>n);if(ci<0)ci=0;
   ZI=[];for(let i=ci;i<HT.length;i++)ZI.push(i);
-  $('zrange').max=ZI.length-1;zKey=null;zen.classList.add('on');zSet(0,true);
+  $('zrange').max=ZI.length-1;zKey=null;zen.classList.add('on');
+  // time references: a label at each midnight, a small tick every 6 hours (thumb is 20px wide)
+  const N=ZI.length-1,pos=j=>`calc(10px + (100% - 20px) * ${(j/N).toFixed(4)})`,TW=Math.max(120,$('zdays').clientWidth-20);
+  // labels only where they fit: every day if there is room, otherwise every 2nd/3rd day; short names when space is tight
+  const mids=ZI.map((i,j)=>[j,HT[i]-3600]).filter(([j,t])=>hr(t)===0&&j>0),dayPx=TW*24/N,every=dayPx>=58?1:dayPx>=30?2:3,short=dayPx*every<62;
+  let h='',lastX=-1e9;const firstX=0;
+  mids.forEach(([j,t],k)=>{const x=TW*j/N;h+=`<i style="left:${pos(j)};top:16px;height:12px;background:rgba(255,255,255,.5)"></i>`;
+    if(k%every===0&&x-lastX>=(short?32:52)&&x<TW-30&&x>(short?30:52)){h+=`<span style="left:${pos(j)}">${k===0&&!short?'Domani':short?fmt(t,{weekday:'short'}).replace(/^./,c=>c.toUpperCase()):wd(t)}</span>`;lastX=x}});
+  ZI.forEach((i,j)=>{const hh=hr(HT[i]-3600);if(hh%6===0&&hh!==0&&dayPx>=40)h+=`<i style="left:${pos(j)}"></i>`});
+  h=`<span style="left:${pos(0)}">Ora</span>`+h;
+  $('zdays').innerHTML=h;
+  zSet(0,true);startTilt();
   try{history.pushState({zen:1},'')}catch(e){}
 }
-function closeZen(){zStop();zen.classList.remove('on');zen.querySelectorAll('.scene').forEach(s=>{s.fx&&s.fx.stop();s.remove()});zCur=null;zKey=null}
+function closeZen(){zStop();stopTilt();zen.classList.remove('on');$('zstage').querySelectorAll('.scene').forEach(s=>{s.fx&&s.fx.stop();s.remove()});zCur=null;zKey=null}
+/* tilt the phone (or move the mouse) to shift the photo a little: smoothed, relative to how the phone was held when zen opened */
+let tilt={on:false,base:null,tx:0,ty:0,x:0,y:0,raf:0};
+function onOrient(e){if(e.beta==null)return;if(!tilt.base)tilt.base={b:e.beta,g:e.gamma};
+  tilt.tx=clamp((e.gamma-tilt.base.g)/25,-1,1);tilt.ty=clamp((e.beta-tilt.base.b)/25,-1,1)}
+function onMouse(e){tilt.tx=(e.clientX/innerWidth-.5)*2;tilt.ty=(e.clientY/innerHeight-.5)*2}
+function tiltLoop(){tilt.x+=(tilt.tx-tilt.x)*.08;tilt.y+=(tilt.ty-tilt.y)*.08;
+  $('zstage').style.transform=`translate3d(${(-tilt.x*3.2).toFixed(2)}%,${(-tilt.y*3.2).toFixed(2)}%,0)`;tilt.raf=requestAnimationFrame(tiltLoop)}
+async function startTilt(){
+  if(tilt.on)return;tilt.on=true;tilt.base=null;tilt.tx=tilt.ty=0;
+  try{if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'){const p=await DeviceOrientationEvent.requestPermission();if(p!=='granted')throw 0}addEventListener('deviceorientation',onOrient)}catch(e){}
+  if(matchMedia('(pointer:fine)').matches)addEventListener('mousemove',onMouse);
+  if(!matchMedia('(prefers-reduced-motion: reduce)').matches)tilt.raf=requestAnimationFrame(tiltLoop);
+}
+function stopTilt(){tilt.on=false;removeEventListener('deviceorientation',onOrient);removeEventListener('mousemove',onMouse);cancelAnimationFrame(tilt.raf);$('zstage').style.transform=''}
 $('openzen').onclick=openZen;$('zclose').onclick=()=>{closeZen();try{if(history.state&&history.state.zen)history.back()}catch(e){}};
 addEventListener('popstate',()=>{if(zen.classList.contains('on'))closeZen()});
 addEventListener('keydown',e=>{if(e.key==='Escape'&&zen.classList.contains('on'))$('zclose').click()});
