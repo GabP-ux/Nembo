@@ -261,11 +261,16 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-of
 .zdays{position:absolute;left:0;right:0;top:0;height:40px;pointer-events:none}
 .zdays span{position:absolute;top:0;font-size:11px;font-weight:600;color:rgba(255,255,255,.9);padding-left:4px;white-space:nowrap;text-shadow:0 1px 6px rgba(0,0,0,.5);line-height:14px}
 .zdays i{position:absolute;top:22px;width:1px;height:6px;background:rgba(255,255,255,.35)}
-#zrange{width:100%;display:block;height:30px;background:transparent;-webkit-appearance:none;appearance:none;position:relative}
-#zrange::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:rgba(255,255,255,.35)}
-#zrange::-moz-range-track{height:4px;border-radius:2px;background:rgba(255,255,255,.35)}
-#zrange::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;margin-top:-8px;border-radius:10px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.4)}
-#zrange::-moz-range-thumb{width:20px;height:20px;border:0;border-radius:10px;background:#fff}
+#zrail{position:relative;height:30px;touch-action:none;cursor:grab;outline:none;-webkit-tap-highlight-color:transparent}
+#zrail .zline{position:absolute;left:10px;right:10px;top:13px;height:4px;border-radius:2px;background:rgba(255,255,255,.3)}
+#zrail .zfill{position:absolute;left:10px;top:13px;height:4px;border-radius:2px;background:rgba(255,255,255,.8);width:0}
+#zrail .zpin{position:absolute;top:5px;left:10px;width:20px;height:20px;margin-left:-10px;border-radius:10px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.4);transition:transform .22s cubic-bezier(.3,1.4,.5,1)}
+#zrail.drag{cursor:grabbing}#zrail.drag .zpin{transform:scale(1.3)}
+#zrail:focus-visible .zpin{box-shadow:0 0 0 3px rgba(120,180,255,.9),0 2px 8px rgba(0,0,0,.4)}
+#zlens{position:absolute;left:0;top:0;z-index:7;pointer-events:none;will-change:transform}
+#zlens .zlg{width:100%;height:100%;border-radius:999px 999px 0 0;overflow:hidden;opacity:0;transform:translateY(26px) scale(.55);transform-origin:50% 100%;transition:opacity .18s,transform .32s cubic-bezier(.25,1.35,.5,1);border-bottom:0;background:rgba(14,20,30,.42)}
+#zlens.on .zlg{opacity:1;transform:none}
+#zlens canvas{display:block;width:100%;height:100%}
 @media (prefers-reduced-motion:reduce){#zen .scene{transition-duration:.6s}}
 @media (min-width:1000px){
   #drawer .mini{display:none!important}#drawer .full{display:block!important}
@@ -359,7 +364,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-of
   <div id="zstage"></div>
   <div class="zhud"><div id="zicon"></div><small id="zlab">–</small><b id="ztemp">–</b><span id="zwhen">–</span></div>
   <button class="glass" id="zclose" aria-label="Chiudi modalità zen">✕</button>
-  <div id="zbar" class="glass"><button id="zplay" aria-label="Riproduci"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg></button><div class="ztrack"><div class="zdays" id="zdays"></div><input id="zrange" type="range" min="0" max="1" step="1" value="0" aria-label="Scorri le ore"></div></div>
+  <div id="zlens" aria-hidden="true"><div class="zlg glass"><canvas id="zlensc"></canvas></div></div><div id="zbar" class="glass"><button id="zplay" aria-label="Riproduci"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg></button><div class="ztrack"><div class="zdays" id="zdays"></div><div id="zrail" role="slider" tabindex="0" aria-label="Scorri le ore" aria-valuemin="0" aria-valuemax="100"><div class="zline"></div><div class="zfill" id="zfill"></div><div class="zpin" id="zpin"></div></div></div></div>
 </div>
 <div id="setbg"></div>
 <div id="settings" role="dialog" aria-label="Impostazioni">
@@ -1415,13 +1420,13 @@ function zShow(k,instant){
   for(let j=zIdx+1;j<Math.min(ZI.length,zIdx+12);j++){const n=ZK[zenState(ZI[j])];if(n&&!n.pre){n.pre=new Image();n.pre.src=CDN+n.img}}
 }
 /* zen timeline: continuous time (minutes), on a stretched scale so the first hours get much more room than the far days */
-const ZA=2.6,RMAX=10000;let Z0=0,ZH=1,zT=0,zRaf=0,zHold=0,zLast=0,zCode=null;
+const ZA=2.6;let Z0=0,ZH=1,zT=0,zRaf=0,zHold=0,zLast=0,zCode=null;
 const zU2H=u=>ZH*(Math.exp(ZA*u)-1)/(Math.exp(ZA)-1);
 const zH2U=h=>Math.log(1+Math.max(0,h)/ZH*(Math.exp(ZA)-1))/ZA;
 const zIdxAt=t=>clamp(Math.floor((t-(HT[ZI[0]]-3600))/3600),0,ZI.length-1);
-function zSet(t,instant,fromRange){
+function zSet(t,instant){
   zT=clamp(t,Z0,Z0+ZH*3600);
-  if(!fromRange)$('zrange').value=Math.round(zH2U((zT-Z0)/3600)*RMAX);
+  zPin();
   zIdx=zIdxAt(zT);const i=ZI[zIdx];
   // temperature interpolated between the hourly values
   let j=HT.findIndex(x=>x>zT)-1;if(j<0)j=0;const f=HT[j+1]?clamp((zT-HT[j])/(HT[j+1]-HT[j]),0,1):0;
@@ -1429,8 +1434,8 @@ function zSet(t,instant,fromRange){
   $('ztemp').textContent=tt==null?'–':Math.round(tt)+'°';
   const code=codeFor('hourly',i)+'|'+(PT[pms()[0]].hourly.is_day[i]!==0);
   if(code!==zCode){zCode=code;$('zicon').innerHTML=wxIcon(codeFor('hourly',i),PT[pms()[0]].hourly.is_day[i]!==0,84)}
-  const shown=Math.round(zT/300)*300;
-  $('zwhen').textContent=`${S.place} · ${zT-nowS()<300?'adesso':wd(shown)+' '+hm(shown)}`;
+  const near=Math.abs(zT-nowS())<7200||zs.on,shown=Math.round(zT/(near?60:300))*(near?60:300);
+  $('zwhen').textContent=`${S.place} · ${zT-nowS()<60?'adesso':wd(shown)+' '+hm(shown)}`;
   zShow(zenState(i),instant);
 }
 const playI='<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>',pauseI='<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>';
@@ -1444,13 +1449,91 @@ function zLoop(now){
   zRaf=requestAnimationFrame(zLoop);
 }
 $('zplay').onclick=()=>{if(zRaf)return zStop();if(zT>=Z0+ZH*3600-60)zSet(Z0);zTimer=1;$('zplay').innerHTML=pauseI;zLast=performance.now();zHold=0;zRaf=requestAnimationFrame(zLoop)};
-let zIn=0;$('zrange').addEventListener('input',e=>{zStop();const u=+e.target.value/RMAX;if(!zIn)zIn=requestAnimationFrame(()=>{zIn=0;zSet(Z0+zU2H(+$('zrange').value/RMAX)*3600,false,true)})});
+/* scrubbing "alla Apple": while the finger holds the pin a half-disc lens rises above it and shows the time magnified.
+   The pin moves relatively: slow finger = fine steps (minute by minute within ±2 h of now), fast finger = whole days */
+function zPin(){const u=zH2U((zT-Z0)/3600);$('zpin').style.left=`calc(10px + (100% - 20px) * ${u.toFixed(5)})`;$('zfill').style.width=`calc((100% - 20px) * ${u.toFixed(5)})`;
+  const r=$('zrail');r.setAttribute('aria-valuenow',Math.round(u*100));r.setAttribute('aria-valuetext',zT-nowS()<60?'adesso':wd(zT)+' '+hm(zT))}
+const ZF={};const zf=(k,o)=>ZF[k]||(ZF[k]=new Intl.DateTimeFormat('it-IT',Object.assign({timeZone:TZ},o)));
+const zHM=t=>zf('hm',{hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(t*1000));
+const zDay=t=>zf('d',{weekday:'short',day:'numeric'}).format(new Date(t*1000)).replace(/^./,c=>c.toUpperCase());
+const zDayL=t=>zf('dl',{weekday:'long',day:'numeric',month:'short'}).format(new Date(t*1000)).replace(/^./,c=>c.toUpperCase());
+const zH=t=>+zf('h',{hour:'numeric',minute:'numeric',hourCycle:'h23'}).format(new Date(t*1000)).replace(':','');
+const ZSTEPS=[60,300,600,900,1800,3600,7200,10800,21600,43200,86400];
+let zs={on:false,id:null,x:0,tm:0,v:0,mpp:.2,span:1800,tSpan:1800,raf:0,R:120,cx:0,lastH:null};
+// minutes per pixel of finger travel: depends on how fast the finger moves and how close we are to now
+function zRate(){const d=Math.abs(zT-nowS())/3600,k=clamp((d-1.5)/2,0,1),base=.12+k*(.9-.12);
+  let m=base*Math.pow(1+3*zs.v,2);if(d<2&&zs.v<.6)m=Math.min(m,1.5);return clamp(m,.1,120)}
+function zLensPlace(){const zr=zen.getBoundingClientRect(),br=$('zbar').getBoundingClientRect(),W=zr.width,R=zs.R;
+  const x=clamp(zs.cx-zr.left-R,8,W-2*R-8),y=br.top-zr.top-R-6;$('zlens').style.transform=`translate3d(${x}px,${y}px,0)`}
+function zLensSize(){const W=zen.clientWidth;zs.R=Math.round(clamp(W/2-14,90,140));const L=$('zlens'),c=$('zlensc'),d=Math.min(2,devicePixelRatio||1);
+  L.style.width=2*zs.R+'px';L.style.height=zs.R+'px';c.width=2*zs.R*d;c.height=zs.R*d;c.getContext('2d').setTransform(d,0,0,d,0,0)}
+function zLensDraw(){
+  const c=$('zlensc'),g=c.getContext('2d'),R=zs.R,W=2*R,cx=R,cy=R;g.clearRect(0,0,W,R);
+  zs.span+=(zs.tSpan-zs.span)*.18;const span=zs.span,half=span/2;
+  const maj=ZSTEPS.find(s=>span/s<=7)||86400,mn=[...ZSTEPS].reverse().find(s=>s<maj&&span/s<=56&&maj%s===0)||maj;
+  const ang=t=>Math.PI/2-(t-zT)/half*(Math.PI/2);  // now at the top, past on the left, future on the right
+  const t1=zT+half;
+  const local=t=>{const hhmm=zH(t);return(Math.floor(hhmm/100)*3600+(hhmm%100)*60)};
+  // shift so ticks fall on local round times (e.g. :00, :15, midnight)
+  const shift=(()=>{const l=local(zT),a=((l%mn)+mn)%mn;return(zT-a)%mn})();
+  g.lineCap='round';g.textAlign='center';g.textBaseline='middle';
+  for(let t=Math.floor((zT-half-shift)/mn)*mn+shift;t<=t1+mn;t+=mn){
+    const a=ang(t);if(a<0.02||a>Math.PI-0.02)continue;
+    const fade=Math.pow(Math.sin(a),1.4),l=local(t),isMaj=(((l%maj)+maj)%maj)===0||(maj>=86400&&l===0),mid=l===0;
+    const r1=R-7,r2=r1-(isMaj?(mid?16:12):5);
+    g.strokeStyle=`rgba(255,255,255,${(isMaj?.95:.4)*fade})`;g.lineWidth=isMaj?(mid?2.2:1.6):1;
+    g.beginPath();g.moveTo(cx+Math.cos(a)*r1,cy-Math.sin(a)*r1);g.lineTo(cx+Math.cos(a)*r2,cy-Math.sin(a)*r2);g.stroke();
+    if(isMaj){const rl=r2-13,txt=mid||maj>=86400?zDay(t):zHM(t);
+      g.font=`${mid?700:600} ${mid?11.5:11}px system-ui,-apple-system,Segoe UI,Roboto,sans-serif`;g.fillStyle=`rgba(255,255,255,${.92*fade})`;
+      g.fillText(txt,cx+Math.cos(a)*rl,cy-Math.sin(a)*rl)}
+  }
+  // "adesso" marker
+  const n=nowS(),an=ang(n);if(an>0.05&&an<Math.PI-0.05){g.fillStyle='#ffd35a';g.beginPath();g.arc(cx+Math.cos(an)*(R-4),cy-Math.sin(an)*(R-4),3,0,7);g.fill()}
+  // needle at the top
+  g.fillStyle='#fff';g.beginPath();g.moveTo(cx-6,1);g.lineTo(cx+6,1);g.lineTo(cx,10);g.closePath();g.fill();
+  g.strokeStyle='rgba(255,255,255,.55)';g.lineWidth=1;g.beginPath();g.moveTo(cx,10);g.lineTo(cx,R-58);g.stroke();
+  // big time in the centre
+  const nowish=Math.abs(zT-n)<60;
+  g.fillStyle='#fff';g.font='300 34px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';g.fillText(nowish?'Adesso':zHM(zT),cx,R-30);
+  g.font='600 11px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';g.fillStyle='rgba(255,255,255,.8)';
+  const dh=(zT-n)/3600,rel=nowish?zHM(n):Math.abs(dh)<1?`${dh>0?'+':'−'}${Math.round(Math.abs(dh)*60)} min`:Math.abs(dh)<48?`${dh>0?'+':'−'}${Math.abs(dh).toFixed(Math.abs(dh)<10?1:0).replace('.',',')} h`:'';
+  g.fillText((zDayL(zT)+(rel?'  ·  '+rel:'')).toUpperCase(),cx,R-9);
+}
+function zLensLoop(){if(!zs.on&&Math.abs(zs.span-zs.tSpan)<1)return zs.raf=0;zs.v*=.9;  // speed decays when the finger rests
+  zs.mpp=zRate();zs.tSpan=clamp(zs.mpp*60*zs.R*1.6,15*60,6*86400);zLensDraw();zs.raf=requestAnimationFrame(zLensLoop)}
+function zLensShow(on){$('zlens').classList.toggle('on',on);$('zrail').classList.toggle('drag',on);if(on&&!zs.raf)zs.raf=requestAnimationFrame(zLensLoop)}
+let zMove=0;
+$('zrail').addEventListener('pointerdown',e=>{
+  if(e.button>0)return;e.preventDefault();zStop();const r=$('zrail');r.setPointerCapture(e.pointerId);r.focus({preventScroll:true});
+  zs.id=e.pointerId;zs.x=e.clientX;zs.tm=e.timeStamp;zs.v=0;zs.cx=e.clientX;zs.lastH=Math.floor(zT/3600);
+  const rr=r.getBoundingClientRect(),px=rr.left+10+(rr.width-20)*zH2U((zT-Z0)/3600);
+  if(Math.abs(e.clientX-px)>24){const u=clamp((e.clientX-rr.left-10)/(rr.width-20),0,1);zSet(Z0+zU2H(u)*3600,false)}  // tap away from the pin: jump there
+  zLensSize();zs.mpp=zRate();zs.span=zs.tSpan=clamp(zs.mpp*60*zs.R*1.6,15*60,6*86400);zLensPlace();zs.on=true;zLensShow(true);
+});
+$('zrail').addEventListener('pointermove',e=>{
+  if(!zs.on||e.pointerId!==zs.id)return;
+  const evs=e.getCoalescedEvents?e.getCoalescedEvents():[e];let t=zT;
+  for(const ev of (evs.length?evs:[e])){const dx=ev.clientX-zs.x,dt=Math.max(1,ev.timeStamp-zs.tm);zs.x=ev.clientX;zs.tm=ev.timeStamp;
+    zs.v=zs.v*.65+Math.min(6,Math.abs(dx)/dt)*.35;zs.mpp=zRate();t+=dx*zs.mpp*60}
+  t=clamp(t,Z0,Z0+ZH*3600);zT=t;zs.cx=e.clientX;zLensPlace();
+  const h=Math.floor(t/3600);if(h!==zs.lastH){zs.lastH=h;if(zs.mpp<4&&navigator.vibrate)try{navigator.vibrate(4)}catch(_){}}
+  if(!zMove)zMove=requestAnimationFrame(()=>{zMove=0;zSet(zT,false)});
+});
+const zUp=e=>{if(e.pointerId!==zs.id)return;zs.on=false;zs.id=null;zLensShow(false);
+  // near now, settle on the exact minute
+  if(Math.abs(zT-nowS())<7200){zSet(Math.abs(zT-nowS())<45?nowS():Math.round(zT/60)*60,false)}};
+$('zrail').addEventListener('pointerup',zUp);$('zrail').addEventListener('pointercancel',zUp);
+$('zrail').addEventListener('keydown',e=>{const near=Math.abs(zT-nowS())<7200,k=e.key;let d=0;
+  if(k==='ArrowRight'||k==='ArrowUp')d=near?60:900;else if(k==='ArrowLeft'||k==='ArrowDown')d=near?-60:-900;
+  else if(k==='PageUp')d=3600;else if(k==='PageDown')d=-3600;else if(k==='Home'){zStop();return zSet(Z0)}else if(k==='End'){zStop();return zSet(Z0+ZH*3600)}else return;
+  e.preventDefault();zStop();zSet(zT+d*(e.shiftKey?24:1))});
+addEventListener('resize',()=>{if(zs.on){zLensSize();zLensPlace()}});
 function openZen(){
   const ms=pms();if(!ms.length||!HT)return toast('Previsioni non ancora caricate');
   const n=nowS();let ci=HT.findIndex(t=>t+3600>n);if(ci<0)ci=0;
   ZI=[];for(let i=ci;i<HT.length;i++)ZI.push(i);
   Z0=n;ZH=Math.max(1,(HT[HT.length-1]-n)/3600);
-  const R=$('zrange');R.min=0;R.max=RMAX;R.step=1;zKey=null;zCode=null;zen.classList.add('on');
+  zKey=null;zCode=null;zen.classList.add('on');
   // time references placed on the stretched scale: day names at midnight, clock hours near now; labels only where they fit
   const TW=Math.max(120,$('zdays').clientWidth-20),X=h=>TW*zH2U(h),pos=h=>`calc(10px + (100% - 20px) * ${zH2U(h).toFixed(4)})`;
   const cand=[],ticks=[];
