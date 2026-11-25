@@ -907,7 +907,7 @@ function tRange(){
   return[Math.floor(a/STEP)*STEP,Math.ceil(b/STEP)*STEP];
 }
 function buildTimeline(){
-  const[a,b]=tRange(),sl=$('slider');sl.min=a;sl.max=b;sl.step=STEP;
+  const[a,b]=tRange(),sl=$('slider');sl.min=a;sl.max=b;sl.step=60;
   const pct=t=>clamp((t-a)/(b-a)*100,0,100).toFixed(2)+'%';
   let h='';for(let t=Math.ceil(a/3600)*3600;t<b;t+=3600)if(hr(t)===0&&(t-a)/(b-a)<.92)h+=`<span style="left:${pct(t)}">${wd(t)}</span>`;
   $('days').innerHTML=h;
@@ -923,7 +923,7 @@ function buildTimeline(){
 }
 function srcName(){const ms=wanted();return S.combine?`${HOWS[S.how][0]} di ${ms.map(m=>MK[m].s).join(' + ')}`:MK[S.focus].n}
 function setT(t){
-  const[a,b]=tRange();T=clamp(Math.round(t/STEP)*STEP,a,b);$('slider').value=T;
+  const[a,b]=tRange();T=clamp(Math.round(t/60)*60,a,b);$('slider').value=T;
   const src=sourceAt(T),shown=src.kind==='radar'?src.f.time:T,n=nowS();
   $('when').innerHTML=`<b>${wd(shown)} ${hm(shown)}</b><span>${rel(shown-n)}</span>`;
   const el=$('src');
@@ -933,7 +933,7 @@ function setT(t){
   draw();markHour();prefetch(T);
 }
 $('tlx').onclick=()=>{const o=!$('tl').classList.contains('more');$('tl').classList.toggle('more',o);$('tlx').setAttribute('aria-expanded',o)};
-$('slider').addEventListener('input',e=>{stop();setT(+e.target.value)});
+let slRaf=0;$('slider').addEventListener('input',()=>{stop();if(!slRaf)slRaf=requestAnimationFrame(()=>{slRaf=0;setT(+$('slider').value)})});
 $('nowb').onclick=()=>{stop();forceModel=false;setT(nowS())};
 $('src').onclick=()=>{const k=sourceAt(T).kind;if(k!=='model'||forceModel){forceModel=!forceModel;setT(T)}};
 let playing=null;
@@ -1414,35 +1414,56 @@ function zShow(k,instant){
   // warm the cache for the next states
   for(let j=zIdx+1;j<Math.min(ZI.length,zIdx+12);j++){const n=ZK[zenState(ZI[j])];if(n&&!n.pre){n.pre=new Image();n.pre.src=CDN+n.img}}
 }
-function zSet(j,instant){
-  zIdx=clamp(j,0,ZI.length-1);$('zrange').value=zIdx;const i=ZI[zIdx],t=HT[i]-3600,tt=comb('hourly','temperature_2m',i);
+/* zen timeline: continuous time (minutes), on a stretched scale so the first hours get much more room than the far days */
+const ZA=2.6,RMAX=10000;let Z0=0,ZH=1,zT=0,zRaf=0,zHold=0,zLast=0,zCode=null;
+const zU2H=u=>ZH*(Math.exp(ZA*u)-1)/(Math.exp(ZA)-1);
+const zH2U=h=>Math.log(1+Math.max(0,h)/ZH*(Math.exp(ZA)-1))/ZA;
+const zIdxAt=t=>clamp(Math.floor((t-(HT[ZI[0]]-3600))/3600),0,ZI.length-1);
+function zSet(t,instant,fromRange){
+  zT=clamp(t,Z0,Z0+ZH*3600);
+  if(!fromRange)$('zrange').value=Math.round(zH2U((zT-Z0)/3600)*RMAX);
+  zIdx=zIdxAt(zT);const i=ZI[zIdx];
+  // temperature interpolated between the hourly values
+  let j=HT.findIndex(x=>x>zT)-1;if(j<0)j=0;const f=HT[j+1]?clamp((zT-HT[j])/(HT[j+1]-HT[j]),0,1):0;
+  const a=comb('hourly','temperature_2m',j),b=HT[j+1]?comb('hourly','temperature_2m',j+1):a,tt=a==null?null:b==null?a:a+(b-a)*f;
   $('ztemp').textContent=tt==null?'–':Math.round(tt)+'°';
-  $('zicon').innerHTML=wxIcon(codeFor('hourly',i),PT[pms()[0]].hourly.is_day[i]!==0,84);
-  $('zwhen').textContent=`${S.place} · ${zIdx===0?'adesso':wd(t)+' '+hm(t)}`;
+  const code=codeFor('hourly',i)+'|'+(PT[pms()[0]].hourly.is_day[i]!==0);
+  if(code!==zCode){zCode=code;$('zicon').innerHTML=wxIcon(codeFor('hourly',i),PT[pms()[0]].hourly.is_day[i]!==0,84)}
+  const shown=Math.round(zT/300)*300;
+  $('zwhen').textContent=`${S.place} · ${zT-nowS()<300?'adesso':wd(shown)+' '+hm(shown)}`;
   zShow(zenState(i),instant);
 }
-function zStop(){clearTimeout(zTimer);zTimer=null;$('zplay').innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>'}
-$('zplay').onclick=()=>{if(zTimer)return zStop();if(zIdx>=ZI.length-1)zSet(0);
-  $('zplay').innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>';
-  // hours with the same weather go by quickly; a change of state gets time for its cross-fade
-  const step=()=>{if(zIdx>=ZI.length-1)return zStop();const before=zKey;zSet(zIdx+1);zTimer=setTimeout(step,zKey!==before?2600:700)};zTimer=setTimeout(step,700)};
-$('zrange').addEventListener('input',e=>{zStop();zSet(+e.target.value)});
+const playI='<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>',pauseI='<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>';
+function zStop(){cancelAnimationFrame(zRaf);zRaf=0;zTimer=null;$('zplay').innerHTML=playI}
+// play: time flows continuously (one hour every 0.75 s); when the weather changes it pauses briefly so the cross-fade can be seen
+function zLoop(now){
+  const dt=Math.min(.1,(now-zLast)/1000);zLast=now;
+  if(now>=zHold){const end=Z0+ZH*3600,before=zKey,nt=zT+dt*3600/.75;
+    if(nt>=end){zSet(end);return zStop()}
+    zSet(nt);if(zKey!==before)zHold=now+2200}
+  zRaf=requestAnimationFrame(zLoop);
+}
+$('zplay').onclick=()=>{if(zRaf)return zStop();if(zT>=Z0+ZH*3600-60)zSet(Z0);zTimer=1;$('zplay').innerHTML=pauseI;zLast=performance.now();zHold=0;zRaf=requestAnimationFrame(zLoop)};
+let zIn=0;$('zrange').addEventListener('input',e=>{zStop();const u=+e.target.value/RMAX;if(!zIn)zIn=requestAnimationFrame(()=>{zIn=0;zSet(Z0+zU2H(+$('zrange').value/RMAX)*3600,false,true)})});
 function openZen(){
   const ms=pms();if(!ms.length||!HT)return toast('Previsioni non ancora caricate');
   const n=nowS();let ci=HT.findIndex(t=>t+3600>n);if(ci<0)ci=0;
   ZI=[];for(let i=ci;i<HT.length;i++)ZI.push(i);
-  $('zrange').max=ZI.length-1;zKey=null;zen.classList.add('on');
-  // time references: a label at each midnight, a small tick every 6 hours (thumb is 20px wide)
-  const N=ZI.length-1,pos=j=>`calc(10px + (100% - 20px) * ${(j/N).toFixed(4)})`,TW=Math.max(120,$('zdays').clientWidth-20);
-  // labels only where they fit: every day if there is room, otherwise every 2nd/3rd day; short names when space is tight
-  const mids=ZI.map((i,j)=>[j,HT[i]-3600]).filter(([j,t])=>hr(t)===0&&j>0),dayPx=TW*24/N,every=dayPx>=46?1:dayPx>=22?2:3,short=dayPx*every<62;
-  let h='',lastX=-1e9;const firstX=0;
-  mids.forEach(([j,t],k)=>{const x=TW*j/N;h+=`<i style="left:${pos(j)};top:16px;height:12px;background:rgba(255,255,255,.5)"></i>`;
-    if(k%every===0&&x-lastX>=(short?32:52)&&x<TW-30&&x>(short?30:52)){h+=`<span style="left:${pos(j)}">${k===0&&!short?'Domani':short?fmt(t,{weekday:'short'}).replace(/^./,c=>c.toUpperCase()):wd(t)}</span>`;lastX=x}});
-  ZI.forEach((i,j)=>{const hh=hr(HT[i]-3600);if(hh%6===0&&hh!==0&&dayPx>=40)h+=`<i style="left:${pos(j)}"></i>`});
-  h=`<span style="left:${pos(0)}">Ora</span>`+h;
-  $('zdays').innerHTML=h;
-  zSet(0,true);startTilt();
+  Z0=n;ZH=Math.max(1,(HT[HT.length-1]-n)/3600);
+  const R=$('zrange');R.min=0;R.max=RMAX;R.step=1;zKey=null;zCode=null;zen.classList.add('on');
+  // time references placed on the stretched scale: day names at midnight, clock hours near now; labels only where they fit
+  const TW=Math.max(120,$('zdays').clientWidth-20),X=h=>TW*zH2U(h),pos=h=>`calc(10px + (100% - 20px) * ${zH2U(h).toFixed(4)})`;
+  const cand=[],ticks=[];
+  for(let t=Math.ceil(n/3600)*3600;t<=n+ZH*3600;t+=3600){const h=(t-n)/3600,hh=hr(t);
+    if(hh===0){ticks.push([h,1]);cand.push([h,0,h<24?'Domani':fmt(t,{weekday:'short'}).replace(/^./,c=>c.toUpperCase())])}
+    else if(h<=30||hh%6===0){ticks.push([h,0]);cand.push([h,hh%6===0?1:2,String(hh).padStart(2,'0')])}}
+  ticks.forEach(([h,big])=>{if(!big&&X(h)-X(h-1)<3)return;});
+  let html=`<span style="left:${pos(0)}">Ora</span>`;const placed=[[0,26]];
+  cand.sort((a,b)=>a[1]-b[1]||a[0]-b[0]).forEach(([h,p,txt])=>{const x=X(h),w=txt.length*6.4+8;
+    if(x+w>TW+6)return;if(placed.some(([px,pw])=>x<px+pw+6&&px<x+w+6))return;placed.push([x,w]);html+=`<span style="left:${pos(h)}">${txt}</span>`});
+  ticks.forEach(([h,big])=>{const x=X(h),gap=X(h)-X(Math.max(0,h-1));if(!big&&gap<4)return;html+=`<i style="left:${pos(h)}${big?';top:16px;height:12px;background:rgba(255,255,255,.55)':''}"></i>`});
+  $('zdays').innerHTML=html;
+  zSet(n,true);startTilt();
   try{history.pushState({zen:1},'')}catch(e){}
 }
 function closeZen(){zStop();stopTilt();zen.classList.remove('on');$('zstage').querySelectorAll('.scene').forEach(s=>{s.fx&&s.fx.stop();s.remove()});zCur=null;zKey=null}
