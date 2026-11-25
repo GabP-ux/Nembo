@@ -100,11 +100,11 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-of
 #ncz{background:linear-gradient(90deg,rgba(192,140,255,.65),rgba(192,140,255,.1))}
 #hz{background:repeating-linear-gradient(45deg,rgba(255,138,61,.3) 0 4px,transparent 4px 8px)}
 .nowmark{position:absolute;top:16px;width:2px;height:20px;background:var(--acc2);border-radius:1px}
-#slider{position:absolute;left:0;right:0;top:12px;width:100%;height:28px;margin:0;background:transparent;-webkit-appearance:none;appearance:none}
-#slider::-webkit-slider-runnable-track{height:8px;border-radius:4px;background:rgba(255,255,255,.1)}
-#slider::-moz-range-track{height:8px;border-radius:4px;background:rgba(255,255,255,.1)}
-#slider::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;margin-top:-8px;border-radius:12px;background:#fff;border:4px solid var(--acc);box-shadow:0 2px 8px rgba(0,0,0,.5)}
-#slider::-moz-range-thumb{width:16px;height:16px;border-radius:12px;background:#fff;border:4px solid var(--acc)}
+#slider{position:absolute;left:0;right:0;top:12px;height:28px;touch-action:none;cursor:grab;outline:none;-webkit-tap-highlight-color:transparent}
+#slider .rline{position:absolute;left:0;right:0;top:10px;height:8px;border-radius:4px;background:rgba(255,255,255,.1)}
+#slider .rpin{position:absolute;top:2px;left:12px;width:24px;height:24px;margin-left:-12px;border-radius:12px;background:#fff;border:4px solid var(--acc);box-shadow:0 2px 8px rgba(0,0,0,.5);transition:transform .22s cubic-bezier(.3,1.4,.5,1)}
+#slider.drag{cursor:grabbing}#slider.drag .rpin{transform:scale(1.25)}
+#slider:focus-visible .rpin{box-shadow:0 0 0 3px rgba(120,180,255,.9),0 2px 8px rgba(0,0,0,.5)}
 .keys{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--mute);margin:2px 0 4px}
 .keys i{display:inline-block;width:10px;height:6px;border-radius:2px;margin-right:4px;vertical-align:1px}
 .legend{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--mute)}
@@ -266,8 +266,9 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-of
 #zrail .zfill{position:absolute;left:10px;top:13px;height:4px;border-radius:2px;background:rgba(255,255,255,.8);width:0}
 #zrail .zpin{position:absolute;top:5px;left:10px;width:20px;height:20px;margin-left:-10px;border-radius:10px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.4);transition:transform .22s cubic-bezier(.3,1.4,.5,1)}
 #zrail.drag{cursor:grabbing}#zrail.drag .zpin{transform:scale(1.3)}
+#zlens:not(.on){visibility:hidden;transition:visibility 0s .3s}
 #zrail:focus-visible .zpin{box-shadow:0 0 0 3px rgba(120,180,255,.9),0 2px 8px rgba(0,0,0,.4)}
-#zlens{position:absolute;left:0;top:0;z-index:7;pointer-events:none;will-change:transform}
+#zlens{position:fixed;left:0;top:0;z-index:4000;pointer-events:none;will-change:transform}
 #zlens .zlg{width:100%;height:100%;border-radius:999px 999px 0 0;overflow:hidden;opacity:0;transform:translateY(26px) scale(.55);transform-origin:50% 100%;transition:opacity .18s,transform .32s cubic-bezier(.25,1.35,.5,1);border-bottom:0;background:rgba(14,20,30,.42)}
 #zlens.on .zlg{opacity:1;transform:none}
 #zlens canvas{display:block;width:100%;height:100%}
@@ -324,7 +325,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-of
     <div class="zone" id="ncz"></div>
     <div class="zone" id="hz"></div>
     <div class="nowmark" id="nowm"></div>
-    <input id="slider" type="range" min="0" max="100" step="600" value="0" aria-label="Scorri il tempo">
+    <div id="slider" role="slider" tabindex="0" aria-label="Scorri il tempo"><div class="rline"></div><div class="rpin" id="rpin"></div></div>
   </div>
   <div class="legend" id="legend"></div>
   <div id="tlmore">
@@ -364,7 +365,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-of
   <div id="zstage"></div>
   <div class="zhud"><div id="zicon"></div><small id="zlab">–</small><b id="ztemp">–</b><span id="zwhen">–</span></div>
   <button class="glass" id="zclose" aria-label="Chiudi modalità zen">✕</button>
-  <div id="zlens" aria-hidden="true"><div class="zlg glass"><canvas id="zlensc"></canvas></div></div><div id="zbar" class="glass"><button id="zplay" aria-label="Riproduci"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg></button><div class="ztrack"><div class="zdays" id="zdays"></div><div id="zrail" role="slider" tabindex="0" aria-label="Scorri le ore" aria-valuemin="0" aria-valuemax="100"><div class="zline"></div><div class="zfill" id="zfill"></div><div class="zpin" id="zpin"></div></div></div></div>
+  <div id="zbar" class="glass"><button id="zplay" aria-label="Riproduci"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg></button><div class="ztrack"><div class="zdays" id="zdays"></div><div id="zrail" role="slider" tabindex="0" aria-label="Scorri le ore" aria-valuemin="0" aria-valuemax="100"><div class="zline"></div><div class="zfill" id="zfill"></div><div class="zpin" id="zpin"></div></div></div></div>
 </div>
 <div id="setbg"></div>
 <div id="settings" role="dialog" aria-label="Impostazioni">
@@ -420,7 +421,7 @@ const hr=t=>+fmt(t,{hour:'numeric',hourCycle:'h23'});
 const dayKey=t=>fmt(t,{year:'numeric',month:'2-digit',day:'2-digit'});
 const nowS=()=>Date.now()/1000;
 const wd=t=>{const k=dayKey(t),n=nowS();return k===dayKey(n)?'Oggi':k===dayKey(n+86400)?'Domani':k===dayKey(n-86400)?'Ieri':fmt(t,{weekday:'short',day:'numeric'}).replace(/^./,c=>c.toUpperCase())};
-const rel=s=>{const a=Math.abs(s);if(a<300)return'adesso';const h=Math.floor(a/3600),m=Math.round((a%3600)/600)*10;let t=h>=6?h+' h':((h?h+' h ':'')+(m&&m<60?m+' min':'')).trim()||'1 h';return s<0?t+' fa':'tra '+t};
+const rel=s=>{const a=Math.abs(s);if(a<300)return'adesso';const h=Math.floor(a/3600),m=h?Math.round((a%3600)/600)*10:Math.round(a/60);let t=h>=6?h+' h':((h?h+' h ':'')+(m&&m<60?m+' min':'')).trim()||'1 h';return s<0?t+' fa':'tra '+t};
 const toast=(m,ms=4000)=>{const e=$('toast');e.textContent=m;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',ms)};
 const km=(a,b,c,d)=>{const r=Math.PI/180;return 6371*Math.hypot((d-b)*r*Math.cos((a+c)/2*r),(c-a)*r)};
 const intens=v=>v<1?'debole':v<4?'moderata':v<10?'forte':'molto forte';
@@ -912,7 +913,7 @@ function tRange(){
   return[Math.floor(a/STEP)*STEP,Math.ceil(b/STEP)*STEP];
 }
 function buildTimeline(){
-  const[a,b]=tRange(),sl=$('slider');sl.min=a;sl.max=b;sl.step=60;
+  const[a,b]=tRange();
   const pct=t=>clamp((t-a)/(b-a)*100,0,100).toFixed(2)+'%';
   let h='';for(let t=Math.ceil(a/3600)*3600;t<b;t+=3600)if(hr(t)===0&&(t-a)/(b-a)<.92)h+=`<span style="left:${pct(t)}">${wd(t)}</span>`;
   $('days').innerHTML=h;
@@ -928,7 +929,7 @@ function buildTimeline(){
 }
 function srcName(){const ms=wanted();return S.combine?`${HOWS[S.how][0]} di ${ms.map(m=>MK[m].s).join(' + ')}`:MK[S.focus].n}
 function setT(t){
-  const[a,b]=tRange();T=clamp(Math.round(t/60)*60,a,b);$('slider').value=T;
+  const[a,b]=tRange();T=clamp(Math.round(t/60)*60,a,b);mapPin();
   const src=sourceAt(T),shown=src.kind==='radar'?src.f.time:T,n=nowS();
   $('when').innerHTML=`<b>${wd(shown)} ${hm(shown)}</b><span>${rel(shown-n)}</span>`;
   const el=$('src');
@@ -938,7 +939,6 @@ function setT(t){
   draw();markHour();prefetch(T);
 }
 $('tlx').onclick=()=>{const o=!$('tl').classList.contains('more');$('tl').classList.toggle('more',o);$('tlx').setAttribute('aria-expanded',o)};
-let slRaf=0;$('slider').addEventListener('input',()=>{stop();if(!slRaf)slRaf=requestAnimationFrame(()=>{slRaf=0;setT(+$('slider').value)})});
 $('nowb').onclick=()=>{stop();forceModel=false;setT(nowS())};
 $('src').onclick=()=>{const k=sourceAt(T).kind;if(k!=='model'||forceModel){forceModel=!forceModel;setT(T)}};
 let playing=null;
@@ -1453,33 +1453,35 @@ $('zplay').onclick=()=>{if(zRaf)return zStop();if(zT>=Z0+ZH*3600-60)zSet(Z0);zTi
    The pin moves relatively: slow finger = fine steps (minute by minute within ±2 h of now), fast finger = whole days */
 function zPin(){const u=zH2U((zT-Z0)/3600);$('zpin').style.left=`calc(10px + (100% - 20px) * ${u.toFixed(5)})`;$('zfill').style.width=`calc((100% - 20px) * ${u.toFixed(5)})`;
   const r=$('zrail');r.setAttribute('aria-valuenow',Math.round(u*100));r.setAttribute('aria-valuetext',zT-nowS()<60?'adesso':wd(zT)+' '+hm(zT))}
+function mapPin(){const[a,b]=tRange(),u=clamp((T-a)/Math.max(1,b-a),0,1);$('rpin').style.left=`calc(12px + (100% - 24px) * ${u.toFixed(5)})`;
+  const r=$('slider');r.setAttribute('aria-valuenow',Math.round(u*100));r.setAttribute('aria-valuetext',wd(T)+' '+hm(T))}
+/* scrubbing "alla Apple", shared by the map timeline and zen: while the finger holds the pin a half-disc lens rises above it
+   and shows the time magnified. The pin moves relatively: slow finger = fine steps (minute by minute within ±2 h of now),
+   fast finger = whole days */
 const ZF={};const zf=(k,o)=>ZF[k]||(ZF[k]=new Intl.DateTimeFormat('it-IT',Object.assign({timeZone:TZ},o)));
 const zHM=t=>zf('hm',{hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(t*1000));
 const zDay=t=>zf('d',{weekday:'short',day:'numeric'}).format(new Date(t*1000)).replace(/^./,c=>c.toUpperCase());
 const zDayL=t=>zf('dl',{weekday:'long',day:'numeric',month:'short'}).format(new Date(t*1000)).replace(/^./,c=>c.toUpperCase());
 const zH=t=>+zf('h',{hour:'numeric',minute:'numeric',hourCycle:'h23'}).format(new Date(t*1000)).replace(':','');
 const ZSTEPS=[60,300,600,900,1800,3600,7200,10800,21600,43200,86400];
-let zs={on:false,id:null,x:0,tm:0,v:0,mpp:.2,span:1800,tSpan:1800,raf:0,R:120,cx:0,lastH:null};
-// minutes per pixel of finger travel: depends on how fast the finger moves and how close we are to now
-function zRate(){const d=Math.abs(zT-nowS())/3600,k=clamp((d-1.5)/2,0,1),base=.12+k*(.9-.12);
+let zs={on:false,c:null,t:0,id:null,x:0,tm:0,v:0,mpp:.2,span:1800,tSpan:1800,raf:0,R:120,cx:0,lastH:null,mv:0};
+function zRate(){const d=Math.abs(zs.t-nowS())/3600,k=clamp((d-1.5)/2,0,1),base=.12+k*(.9-.12);
   let m=base*Math.pow(1+3*zs.v,2);if(d<2&&zs.v<.6)m=Math.min(m,1.5);return clamp(m,.1,120)}
-function zLensPlace(){const zr=zen.getBoundingClientRect(),br=$('zbar').getBoundingClientRect(),W=zr.width,R=zs.R;
-  const x=clamp(zs.cx-zr.left-R,8,W-2*R-8),y=br.top-zr.top-R-6;$('zlens').style.transform=`translate3d(${x}px,${y}px,0)`}
-function zLensSize(){const W=zen.clientWidth;zs.R=Math.round(clamp(W/2-14,90,140));const L=$('zlens'),c=$('zlensc'),d=Math.min(2,devicePixelRatio||1);
+function zLensPlace(){const br=zs.c.anchor().getBoundingClientRect(),R=zs.R,x=clamp(zs.cx-R,8,innerWidth-2*R-8),y=br.top-R-6;
+  $('zlens').style.transform=`translate3d(${x}px,${y}px,0)`}
+function zLensSize(){zs.R=Math.round(clamp(innerWidth/2-14,90,140));const L=$('zlens'),c=$('zlensc'),d=Math.min(2,devicePixelRatio||1);
   L.style.width=2*zs.R+'px';L.style.height=zs.R+'px';c.width=2*zs.R*d;c.height=zs.R*d;c.getContext('2d').setTransform(d,0,0,d,0,0)}
 function zLensDraw(){
-  const c=$('zlensc'),g=c.getContext('2d'),R=zs.R,W=2*R,cx=R,cy=R;g.clearRect(0,0,W,R);
-  zs.span+=(zs.tSpan-zs.span)*.18;const span=zs.span,half=span/2;
+  const c=$('zlensc'),g=c.getContext('2d'),R=zs.R,W=2*R,cx=R,cy=R,T0=zs.t;g.clearRect(0,0,W,R);
+  zs.span+=(zs.tSpan-zs.span)*.18;const span=zs.span,half=span/2,[ra,rb]=zs.c.range();
   const maj=ZSTEPS.find(s=>span/s<=7)||86400,mn=[...ZSTEPS].reverse().find(s=>s<maj&&span/s<=56&&maj%s===0)||maj;
-  const ang=t=>Math.PI/2-(t-zT)/half*(Math.PI/2);  // now at the top, past on the left, future on the right
-  const t1=zT+half;
+  const ang=t=>Math.PI/2-(t-T0)/half*(Math.PI/2);  // chosen time at the top, past on the left, future on the right
   const local=t=>{const hhmm=zH(t);return(Math.floor(hhmm/100)*3600+(hhmm%100)*60)};
-  // shift so ticks fall on local round times (e.g. :00, :15, midnight)
-  const shift=(()=>{const l=local(zT),a=((l%mn)+mn)%mn;return(zT-a)%mn})();
+  const shift=(()=>{const l=local(T0),a=((l%mn)+mn)%mn;return(T0-a)%mn})();  // ticks on local round times
   g.lineCap='round';g.textAlign='center';g.textBaseline='middle';
-  for(let t=Math.floor((zT-half-shift)/mn)*mn+shift;t<=t1+mn;t+=mn){
+  for(let t=Math.floor((T0-half-shift)/mn)*mn+shift;t<=T0+half+mn;t+=mn){
     const a=ang(t);if(a<0.02||a>Math.PI-0.02)continue;
-    const fade=Math.pow(Math.sin(a),1.4),l=local(t),isMaj=(((l%maj)+maj)%maj)===0||(maj>=86400&&l===0),mid=l===0;
+    const out=t<ra-1||t>rb+1,fade=Math.pow(Math.sin(a),1.4)*(out?.25:1),l=local(t),isMaj=(((l%maj)+maj)%maj)===0||(maj>=86400&&l===0),mid=l===0;
     const r1=R-7,r2=r1-(isMaj?(mid?16:12):5);
     g.strokeStyle=`rgba(255,255,255,${(isMaj?.95:.4)*fade})`;g.lineWidth=isMaj?(mid?2.2:1.6):1;
     g.beginPath();g.moveTo(cx+Math.cos(a)*r1,cy-Math.sin(a)*r1);g.lineTo(cx+Math.cos(a)*r2,cy-Math.sin(a)*r2);g.stroke();
@@ -1487,46 +1489,46 @@ function zLensDraw(){
       g.font=`${mid?700:600} ${mid?11.5:11}px system-ui,-apple-system,Segoe UI,Roboto,sans-serif`;g.fillStyle=`rgba(255,255,255,${.92*fade})`;
       g.fillText(txt,cx+Math.cos(a)*rl,cy-Math.sin(a)*rl)}
   }
-  // "adesso" marker
   const n=nowS(),an=ang(n);if(an>0.05&&an<Math.PI-0.05){g.fillStyle='#ffd35a';g.beginPath();g.arc(cx+Math.cos(an)*(R-4),cy-Math.sin(an)*(R-4),3,0,7);g.fill()}
-  // needle at the top
   g.fillStyle='#fff';g.beginPath();g.moveTo(cx-6,1);g.lineTo(cx+6,1);g.lineTo(cx,10);g.closePath();g.fill();
   g.strokeStyle='rgba(255,255,255,.55)';g.lineWidth=1;g.beginPath();g.moveTo(cx,10);g.lineTo(cx,R-58);g.stroke();
-  // big time in the centre
-  const nowish=Math.abs(zT-n)<60;
-  g.fillStyle='#fff';g.font='300 34px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';g.fillText(nowish?'Adesso':zHM(zT),cx,R-30);
+  const nowish=Math.abs(T0-n)<60;
+  const Tm=Math.round(T0/60)*60;g.fillStyle='#fff';g.font='300 34px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';g.fillText(nowish?'Adesso':zHM(Tm),cx,R-30);
   g.font='600 11px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';g.fillStyle='rgba(255,255,255,.8)';
-  const dh=(zT-n)/3600,rel=nowish?zHM(n):Math.abs(dh)<1?`${dh>0?'+':'−'}${Math.round(Math.abs(dh)*60)} min`:Math.abs(dh)<48?`${dh>0?'+':'−'}${Math.abs(dh).toFixed(Math.abs(dh)<10?1:0).replace('.',',')} h`:'';
-  g.fillText((zDayL(zT)+(rel?'  ·  '+rel:'')).toUpperCase(),cx,R-9);
+  const dh=(Tm-Math.round(n/60)*60)/3600,ad=Math.abs(dh),rel=nowish?zHM(n):ad<1?`${dh>0?'+':'−'}${Math.round(ad*60)} min`:ad<48?`${dh>0?'+':'−'}${ad.toFixed(ad<10?1:0).replace('.',',')} h`:'';
+  g.fillText((zDayL(Tm)+(rel?'  ·  '+rel:'')).toUpperCase(),cx,R-9);
 }
 function zLensLoop(){if(!zs.on&&Math.abs(zs.span-zs.tSpan)<1)return zs.raf=0;zs.v*=.9;  // speed decays when the finger rests
   zs.mpp=zRate();zs.tSpan=clamp(zs.mpp*60*zs.R*1.6,15*60,6*86400);zLensDraw();zs.raf=requestAnimationFrame(zLensLoop)}
-function zLensShow(on){$('zlens').classList.toggle('on',on);$('zrail').classList.toggle('drag',on);if(on&&!zs.raf)zs.raf=requestAnimationFrame(zLensLoop)}
-let zMove=0;
-$('zrail').addEventListener('pointerdown',e=>{
-  if(e.button>0)return;e.preventDefault();zStop();const r=$('zrail');r.setPointerCapture(e.pointerId);r.focus({preventScroll:true});
-  zs.id=e.pointerId;zs.x=e.clientX;zs.tm=e.timeStamp;zs.v=0;zs.cx=e.clientX;zs.lastH=Math.floor(zT/3600);
-  const rr=r.getBoundingClientRect(),px=rr.left+10+(rr.width-20)*zH2U((zT-Z0)/3600);
-  if(Math.abs(e.clientX-px)>24){const u=clamp((e.clientX-rr.left-10)/(rr.width-20),0,1);zSet(Z0+zU2H(u)*3600,false)}  // tap away from the pin: jump there
-  zLensSize();zs.mpp=zRate();zs.span=zs.tSpan=clamp(zs.mpp*60*zs.R*1.6,15*60,6*86400);zLensPlace();zs.on=true;zLensShow(true);
-});
-$('zrail').addEventListener('pointermove',e=>{
-  if(!zs.on||e.pointerId!==zs.id)return;
-  const evs=e.getCoalescedEvents?e.getCoalescedEvents():[e];let t=zT;
-  for(const ev of (evs.length?evs:[e])){const dx=ev.clientX-zs.x,dt=Math.max(1,ev.timeStamp-zs.tm);zs.x=ev.clientX;zs.tm=ev.timeStamp;
-    zs.v=zs.v*.65+Math.min(6,Math.abs(dx)/dt)*.35;zs.mpp=zRate();t+=dx*zs.mpp*60}
-  t=clamp(t,Z0,Z0+ZH*3600);zT=t;zs.cx=e.clientX;zLensPlace();
-  const h=Math.floor(t/3600);if(h!==zs.lastH){zs.lastH=h;if(zs.mpp<4&&navigator.vibrate)try{navigator.vibrate(4)}catch(_){}}
-  if(!zMove)zMove=requestAnimationFrame(()=>{zMove=0;zSet(zT,false)});
-});
-const zUp=e=>{if(e.pointerId!==zs.id)return;zs.on=false;zs.id=null;zLensShow(false);
-  // near now, settle on the exact minute
-  if(Math.abs(zT-nowS())<7200){zSet(Math.abs(zT-nowS())<45?nowS():Math.round(zT/60)*60,false)}};
-$('zrail').addEventListener('pointerup',zUp);$('zrail').addEventListener('pointercancel',zUp);
-$('zrail').addEventListener('keydown',e=>{const near=Math.abs(zT-nowS())<7200,k=e.key;let d=0;
-  if(k==='ArrowRight'||k==='ArrowUp')d=near?60:900;else if(k==='ArrowLeft'||k==='ArrowDown')d=near?-60:-900;
-  else if(k==='PageUp')d=3600;else if(k==='PageDown')d=-3600;else if(k==='Home'){zStop();return zSet(Z0)}else if(k==='End'){zStop();return zSet(Z0+ZH*3600)}else return;
-  e.preventDefault();zStop();zSet(zT+d*(e.shiftKey?24:1))});
+function zLensShow(on){$('zlens').classList.toggle('on',on);zs.c.el.classList.toggle('drag',on);if(on&&!zs.raf)zs.raf=requestAnimationFrame(zLensLoop)}
+/* cfg: el (rail), pin (its knob), anchor() (element the lens sits on), get(), set(t), range(), u(t) and t(u) (rail position <-> time), stop() */
+function scrubber(cfg){const el=cfg.el;
+  el.addEventListener('pointerdown',e=>{
+    if(e.button>0)return;e.preventDefault();cfg.stop();el.setPointerCapture(e.pointerId);el.focus({preventScroll:true});
+    zs.c=cfg;zs.id=e.pointerId;zs.x=e.clientX;zs.tm=e.timeStamp;zs.v=0;zs.cx=e.clientX;zs.t=cfg.get();
+    const pr=cfg.pin.getBoundingClientRect(),rr=el.getBoundingClientRect(),inset=pr.width/2;
+    if(Math.abs(e.clientX-(pr.left+pr.width/2))>26){zs.t=cfg.t(clamp((e.clientX-rr.left-inset)/(rr.width-2*inset),0,1));cfg.set(zs.t)}  // tap away from the pin: jump there
+    zs.lastH=Math.floor(zs.t/3600);zLensSize();zs.mpp=zRate();zs.span=zs.tSpan=clamp(zs.mpp*60*zs.R*1.6,15*60,6*86400);zLensPlace();zs.on=true;zLensShow(true);
+  });
+  el.addEventListener('pointermove',e=>{
+    if(!zs.on||zs.c!==cfg||e.pointerId!==zs.id)return;
+    const evs=e.getCoalescedEvents?e.getCoalescedEvents():[];let t=zs.t;
+    for(const ev of (evs.length?evs:[e])){const dx=ev.clientX-zs.x,dt=Math.max(1,ev.timeStamp-zs.tm);zs.x=ev.clientX;zs.tm=ev.timeStamp;
+      zs.v=zs.v*.65+Math.min(6,Math.abs(dx)/dt)*.35;zs.t=t;zs.mpp=zRate();t+=dx*zs.mpp*60}
+    const[a,b]=cfg.range();zs.t=clamp(t,a,b);zs.cx=e.clientX;zLensPlace();
+    const h=Math.floor(zs.t/3600);if(h!==zs.lastH){zs.lastH=h;if(zs.mpp<4&&navigator.vibrate)try{navigator.vibrate(4)}catch(_){}}
+    if(!zs.mv)zs.mv=requestAnimationFrame(()=>{zs.mv=0;cfg.set(zs.t)});
+  });
+  const up=e=>{if(zs.c!==cfg||e.pointerId!==zs.id)return;zs.on=false;zs.id=null;zLensShow(false);cancelAnimationFrame(zs.mv);zs.mv=0;
+    const n=nowS();cfg.set(Math.abs(zs.t-n)<45?n:Math.abs(zs.t-n)<7200?Math.round(zs.t/60)*60:zs.t)};  // near now, settle on the exact minute
+  el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);
+  el.addEventListener('keydown',e=>{const t=cfg.get(),near=Math.abs(t-nowS())<7200,k=e.key,[a,b]=cfg.range();let d=0;
+    if(k==='ArrowRight'||k==='ArrowUp')d=near?60:900;else if(k==='ArrowLeft'||k==='ArrowDown')d=near?-60:-900;
+    else if(k==='PageUp')d=3600;else if(k==='PageDown')d=-3600;else if(k==='Home'){cfg.stop();return cfg.set(a)}else if(k==='End'){cfg.stop();return cfg.set(b)}else return;
+    e.preventDefault();cfg.stop();cfg.set(clamp(t+d*(e.shiftKey?24:1),a,b))});
+}
+scrubber({el:$('zrail'),pin:$('zpin'),anchor:()=>$('zbar'),get:()=>zT,set:t=>zSet(t,false),range:()=>[Z0,Z0+ZH*3600],u:t=>zH2U((t-Z0)/3600),t:u=>Z0+zU2H(u)*3600,stop:zStop});
+scrubber({el:$('slider'),pin:$('rpin'),anchor:()=>$('tl'),get:()=>T,set:t=>setT(t),range:tRange,u:t=>{const[a,b]=tRange();return(t-a)/(b-a)},t:u=>{const[a,b]=tRange();return a+u*(b-a)},stop:()=>stop()});
 addEventListener('resize',()=>{if(zs.on){zLensSize();zLensPlace()}});
 function openZen(){
   const ms=pms();if(!ms.length||!HT)return toast('Previsioni non ancora caricate');
@@ -1584,5 +1586,6 @@ snap(innerWidth>=1000?2:0,false);buildBar();
 window.__nembo={map,get V(){return RV&&RV.V},desiredMosaic,get GD(){return GD},get META(){return META},get FR(){return FR},get MOS(){return MOS},modelRaster,axisOf,omUrl,runFor,get RV(){return RV},modelField,sourceAt,pointValue,blockMotion,coarse,computeMotion,velAt,MM,merc,decodeFrame,setT,get T(){return T}};
 }
 </script>
+<div id="zlens" aria-hidden="true"><div class="zlg glass"><canvas id="zlensc"></canvas></div></div>
 </body>
 </html>
